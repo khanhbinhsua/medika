@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { fetchOrders, fetchReceivables, vnd, ORDER_STATUS_VI, ORDER_STATUS_TONE } from '../lib/billing';
+import toast from 'react-hot-toast';
+import { fetchOrders, fetchReceivables, exportOrdersCsv, vnd, ORDER_STATUS_VI, ORDER_STATUS_TONE } from '../lib/billing';
 import { getErrorMessage } from '../lib/api-client';
-import { Alert, Badge, Skeleton, Input, cx } from '../components/ui';
+import { Alert, Badge, Button, Skeleton, Input, cx } from '../components/ui';
 import { PageHeader } from '../components/PageHeader';
 import { OrderDialog } from '../components/OrderDialog';
 
@@ -13,11 +14,24 @@ export function BillingPage() {
   const [q, setQ] = useState('');
   const [openId, setOpenId] = useState<string | null>(null);
 
+  const [exporting, setExporting] = useState(false);
+
   const receivables = useQuery({ queryKey: ['billing-receivables'], queryFn: fetchReceivables });
   const orders = useQuery({
     queryKey: ['billing-orders', status, q],
     queryFn: () => fetchOrders({ status: status || undefined, q: q.trim() || undefined }),
   });
+
+  async function onExport() {
+    setExporting(true);
+    try {
+      await exportOrdersCsv({ status: status || undefined, q: q.trim() || undefined });
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+    } finally {
+      setExporting(false);
+    }
+  }
 
   return (
     <div className="mx-auto max-w-4xl space-y-5">
@@ -50,6 +64,9 @@ export function BillingPage() {
           </button>
         ))}
         <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Tìm mã đơn / mã bệnh nhân" className="ml-auto h-8 max-w-[14rem] text-xs" />
+        <Button variant="ghost" className="h-8 px-3 text-xs" loading={exporting} onClick={onExport}>
+          Xuất Excel
+        </Button>
       </div>
 
       {/* Sổ thanh toán */}

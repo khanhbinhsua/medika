@@ -80,3 +80,25 @@ export async function fetchReceivables(): Promise<{ total: number; count: number
   const { data } = await apiClient.get('/billing/orders/receivables');
   return data;
 }
+
+export interface PatientPackage {
+  id: string; name: string; total: number; used: number; remaining: number;
+  expiresAt: string | null; createdAt: string;
+}
+export async function fetchPatientPackages(patientId: string): Promise<PatientPackage[]> {
+  const { data } = await apiClient.get<PatientPackage[]>(`/billing/patients/${patientId}/packages`);
+  return data;
+}
+
+/** Tải sổ thanh toán ra CSV (mở bằng Excel) — giữ Authorization header nên tải qua blob. */
+export async function exportOrdersCsv(params: { status?: string; q?: string } = {}): Promise<void> {
+  const res = await apiClient.get('/billing/orders/export.csv', { params, responseType: 'blob' });
+  const url = URL.createObjectURL(res.data as Blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'so-thanh-toan.csv';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}

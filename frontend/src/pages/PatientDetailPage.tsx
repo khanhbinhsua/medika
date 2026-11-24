@@ -2,10 +2,12 @@ import { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { fetchPatient, fullName, ageFrom, formatDate, GENDER_LABELS, STATUS_LABELS } from '../lib/patients';
+import { fetchConditions, SEVERITY_VI } from '../lib/conditions';
 import { getErrorMessage } from '../lib/api-client';
 import { useAuthStore } from '../stores/auth.store';
 import { Alert, Badge, Button, DataPlate, Skeleton } from '../components/ui';
 import { PageHeader } from '../components/PageHeader';
+import { PatientKpiTiles } from '../components/PatientKpiTiles';
 import { PatientClinicalTabs } from '../components/PatientClinicalTabs';
 import { PatientConsents } from '../components/PatientConsents';
 import { DeletePatientDialog } from '../components/DeletePatientDialog';
@@ -22,6 +24,13 @@ export function PatientDetailPage() {
     queryFn: () => fetchPatient(patientId!),
     enabled: !!patientId,
   });
+
+  const conditions = useQuery({
+    queryKey: ['conditions', patientId],
+    queryFn: () => fetchConditions(patientId!),
+    enabled: !!patientId && can('condition:read'),
+  });
+  const allergies = conditions.data?.allergies ?? [];
 
   if (isError) {
     return (
@@ -63,6 +72,19 @@ export function PatientDetailPage() {
           </Badge>
         }
       />
+
+      {/* Cảnh báo dị ứng — đập vào mắt ngay đầu hồ sơ (S11 · must) */}
+      {allergies.length > 0 && (
+        <Alert tone="warn">
+          <span className="font-semibold">⚠ Dị ứng:</span>{' '}
+          {allergies
+            .map((a) => `${a.allergyName}${a.severity ? ` (${SEVERITY_VI[a.severity] ?? a.severity})` : ''}`)
+            .join(' · ')}
+        </Alert>
+      )}
+
+      {/* 4 ô chỉ số: chi tiêu · công nợ · buổi còn lại · lượt đến */}
+      <PatientKpiTiles patientId={data.id} />
 
       {/* Tấm định danh: cụm thông tin cần liếc là thấy, đặt ngay đầu trang */}
       <section className="plate">

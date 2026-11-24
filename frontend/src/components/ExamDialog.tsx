@@ -94,12 +94,14 @@ export function ExamDialog({ encounterId, onClose, onChanged }: { encounterId: s
             </div>
           </Section>
           <Section n="IV" title="Khám bệnh">
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
               <V label="Mạch (l/ph)" value={f.vitals.pulse} onChange={(v) => setV('pulse', v)} disabled={!editable} />
               <V label="Nhiệt độ (°C)" value={f.vitals.temp} onChange={(v) => setV('temp', v)} disabled={!editable} />
               <V label="Huyết áp" value={f.vitals.bp} onChange={(v) => setV('bp', v)} disabled={!editable} ph="120/80" />
               <V label="Nhịp thở" value={f.vitals.resp} onChange={(v) => setV('resp', v)} disabled={!editable} />
               <V label="Cân nặng (kg)" value={f.vitals.weight} onChange={(v) => setV('weight', v)} disabled={!editable} />
+              <V label="Chiều cao (cm)" value={f.vitals.height} onChange={(v) => setV('height', v)} disabled={!editable} />
+              <V label="SpO₂ (%)" value={f.vitals.spo2} onChange={(v) => setV('spo2', v)} disabled={!editable} />
             </div>
             <L label="1. Toàn thân"><textarea className={ta} rows={2} disabled={!editable} value={f.examGeneral ?? ''} onChange={(e) => set('examGeneral', e.target.value)} /></L>
             <L label="2. Các bộ phận"><textarea className={ta} rows={3} disabled={!editable} value={f.examOrgans ?? ''} onChange={(e) => set('examOrgans', e.target.value)} /></L>
