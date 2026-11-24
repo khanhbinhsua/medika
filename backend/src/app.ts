@@ -28,6 +28,7 @@ import { spendingRouter } from './modules/spending/spending.routes.js';
 import { conditionsRouter } from './modules/conditions/conditions.routes.js';
 import { icd10Router } from './modules/icd10/icd10.routes.js';
 import { branchRouter } from './modules/branch/branch.routes.js';
+import { bookingPublicRouter, bookingRouter } from './modules/booking/booking.routes.js';
 import { dklinkWebhookRouter } from './modules/dklink/dklink.routes.js';
 
 export function createApp() {
@@ -111,11 +112,13 @@ export function createApp() {
   app.use('/api/marketing', marketingRouter);
   // Trả lời khảo sát công khai (không đăng nhập) — mount trước router staff.
   app.use('/api/public/surveys', surveyPublicRouter);
+  app.use('/api/public/booking', bookingPublicRouter);
   app.use('/api/surveys', surveyRouter);
   app.use('/api/spending', spendingRouter);
   app.use('/api/conditions', conditionsRouter);
   app.use('/api/icd10', icd10Router);
   app.use('/api/branches', branchRouter);
+  app.use('/api/bookings', bookingRouter);
 
   app.use(notFoundHandler);
   app.use(errorHandler);

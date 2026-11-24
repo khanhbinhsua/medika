@@ -179,6 +179,7 @@ export interface AppointmentsTable {
   patient_id: string;
   doctor_id: string;
   branch_id: string | null;
+  source: Generated<string>;
   scheduled_start: Timestamp;
   scheduled_end: Timestamp;
   room: string | null;
@@ -592,6 +593,25 @@ export interface UserBranchesTable {
   branch_id: string;
 }
 
+export type BookingStatus = 'pending' | 'confirmed' | 'rejected';
+
+export interface BookingRequestsTable {
+  id: Generated<string>;
+  branch_id: string;
+  requested_start: Timestamp;
+  requested_end: Timestamp;
+  full_name: string;
+  phone: string;
+  note: string | null;
+  status: Generated<BookingStatus>;
+  source: Generated<string>;
+  confirmed_appointment_id: string | null;
+  reject_reason: string | null;
+  handled_by: string | null;
+  handled_at: Timestamp | null;
+  created_at: Timestamp;
+}
+
 export interface Database {
   roles: RolesTable;
   permissions: PermissionsTable;
@@ -634,4 +654,5 @@ export interface Database {
   icd10_codes: Icd10CodesTable;
   branches: BranchesTable;
   user_branches: UserBranchesTable;
+  booking_requests: BookingRequestsTable;
 }

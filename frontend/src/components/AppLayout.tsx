@@ -15,6 +15,7 @@ const NAV: NavItem[] = [
   { to: '/dashboard', label: 'Tổng quan' },
   { to: '/benh-nhan', label: 'Bệnh nhân', permission: 'patient:read' },
   { to: '/lich-hen', label: 'Lịch hẹn', permission: 'appointment:read' },
+  { to: '/dat-lich-online', label: 'Đặt lịch online', permission: 'booking:manage' },
   { to: '/chi-tieu', label: 'Chi tiêu KH', permission: 'spending:read' },
   { to: '/phac-do', label: 'Phác đồ', permission: 'treatment:read' },
   { to: '/khao-sat', label: 'Khảo sát', permission: 'survey:read' },

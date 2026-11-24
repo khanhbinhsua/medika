@@ -21,6 +21,8 @@ import { MarketingPage } from './pages/MarketingPage';
 import { SurveysPage } from './pages/SurveysPage';
 import { SpendingPage } from './pages/SpendingPage';
 import { BranchesPage } from './pages/BranchesPage';
+import { PublicBookingPage } from './pages/PublicBookingPage';
+import { BookingInboxPage } from './pages/BookingInboxPage';
 import { UsersPage } from './pages/UsersPage';
 import { PublicSurveyPage } from './pages/PublicSurveyPage';
 import { useAuthStore } from './stores/auth.store';
@@ -96,8 +98,9 @@ function App() {
           <Route path="/portal" element={<PortalDashboard />} />
         </Route>
 
-        {/* Khảo sát công khai — bệnh nhân mở bằng link, KHÔNG cần đăng nhập */}
+        {/* Công khai — KHÔNG cần đăng nhập */}
         <Route path="/survey/:token" element={<PublicSurveyPage />} />
+        <Route path="/dat-lich" element={<PublicBookingPage />} />
 
         <Route path="/login" element={<LoginPage />} />
         <Route path="/mfa" element={<MfaVerifyPage />} />
@@ -154,6 +157,10 @@ function App() {
 
             <Route element={<ProtectedRoute requiredPermissions={['branch:manage']} />}>
               <Route path="/chi-nhanh" element={<BranchesPage />} />
+            </Route>
+
+            <Route element={<ProtectedRoute requiredPermissions={['booking:manage']} />}>
+              <Route path="/dat-lich-online" element={<BookingInboxPage />} />
             </Route>
 
             <Route element={<ProtectedRoute requiredPermissions={['audit:read']} />}>
