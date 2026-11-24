@@ -29,6 +29,7 @@ import { conditionsRouter } from './modules/conditions/conditions.routes.js';
 import { icd10Router } from './modules/icd10/icd10.routes.js';
 import { branchRouter } from './modules/branch/branch.routes.js';
 import { bookingPublicRouter, bookingRouter } from './modules/booking/booking.routes.js';
+import { billingRouter } from './modules/billing/billing.routes.js';
 import { dklinkWebhookRouter } from './modules/dklink/dklink.routes.js';
 
 export function createApp() {
@@ -119,6 +120,7 @@ export function createApp() {
   app.use('/api/icd10', icd10Router);
   app.use('/api/branches', branchRouter);
   app.use('/api/bookings', bookingRouter);
+  app.use('/api/billing', billingRouter);
 
   app.use(notFoundHandler);
   app.use(errorHandler);

@@ -64,7 +64,7 @@ check('response có Cache-Control no-store', true);
 // Baseline CRM (đã rút gọn lâm sàng): admin có quyền các module CRM — bệnh nhân,
 // lịch hẹn, đơn thuốc, bệnh lý/dị ứng, tài liệu, chi tiêu, phác đồ, marketing,
 // khảo sát, thông báo, cổng BN, báo cáo, người dùng, kiểm toán.
-check('user có 32 permission (admin)', confirm.body?.user?.permissions?.length === 32, `got ${confirm.body?.user?.permissions?.length}`);
+check('user có 34 permission (admin)', confirm.body?.user?.permissions?.length === 34, `got ${confirm.body?.user?.permissions?.length}`);
 
 const adminToken = confirm.body.accessToken;
 const adminCookie = (confirm.setCookie ?? '').split(';')[0];
@@ -141,7 +141,7 @@ const rSecret = new URL(rStart.body.otpauthUrl).searchParams.get('secret');
 const rConfirm = await req('POST', '/auth/mfa/enroll/confirm', { body: { enrollmentToken: rLogin.body.enrollmentToken, code: authenticator.generate(rSecret) } });
 const rToken = rConfirm.body?.accessToken;
 check('lễ tân đăng nhập được', !!rToken, JSON.stringify(rConfirm.body));
-check('lễ tân có 18 permission', rConfirm.body?.user?.permissions?.length === 18, `got ${rConfirm.body?.user?.permissions?.length}`);
+check('lễ tân có 20 permission', rConfirm.body?.user?.permissions?.length === 20, `got ${rConfirm.body?.user?.permissions?.length}`);
 
 const rRead = await req('GET', '/patients', { token: rToken });
 check('lễ tân ĐƯỢC xem danh sách bệnh nhân', rRead.status === 200, `status=${rRead.status}`);

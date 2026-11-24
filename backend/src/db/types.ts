@@ -612,6 +612,78 @@ export interface BookingRequestsTable {
   created_at: Timestamp;
 }
 
+export type OrderStatus = 'draft' | 'unpaid' | 'partial' | 'paid' | 'cancelled';
+
+export interface ServicesTable {
+  id: Generated<string>;
+  branch_id: string | null;
+  code: string | null;
+  name: string;
+  category: string | null;
+  price_vnd: Numeric;
+  active: Generated<boolean>;
+  created_at: Timestamp;
+}
+
+export interface PackagesTable {
+  id: Generated<string>;
+  name: string;
+  unit: string;
+  qty: number;
+  price_vnd: Numeric;
+  validity_days: number | null;
+  active: Generated<boolean>;
+  created_at: Timestamp;
+}
+
+export interface OrdersTable {
+  id: Generated<string>;
+  code: Generated<string>;
+  branch_id: string | null;
+  patient_id: string;
+  appointment_id: string | null;
+  status: Generated<OrderStatus>;
+  total_vnd: Numeric;
+  note: string | null;
+  created_by: string;
+  created_at: Timestamp;
+  updated_at: Timestamp;
+}
+
+export interface OrderLinesTable {
+  id: Generated<string>;
+  order_id: string;
+  kind: string;
+  ref_id: string | null;
+  name: string;
+  qty: Generated<number>;
+  unit_price_vnd: Numeric;
+  discount_vnd: Numeric;
+  amount_vnd: Numeric;
+  created_at: Timestamp;
+}
+
+export interface PaymentsTable {
+  id: Generated<string>;
+  order_id: string;
+  method: string;
+  amount_vnd: Numeric;
+  received_by: string;
+  paid_at: Timestamp;
+}
+
+export interface CustomerPackagesTable {
+  id: Generated<string>;
+  patient_id: string;
+  package_id: string;
+  order_id: string | null;
+  name: string;
+  total: number;
+  used: Generated<number>;
+  expires_at: Date | null;
+  created_at: Timestamp;
+}
+
 export interface Database {
   roles: RolesTable;
   permissions: PermissionsTable;
@@ -655,4 +727,10 @@ export interface Database {
   branches: BranchesTable;
   user_branches: UserBranchesTable;
   booking_requests: BookingRequestsTable;
+  services: ServicesTable;
+  packages: PackagesTable;
+  orders: OrdersTable;
+  order_lines: OrderLinesTable;
+  payments: PaymentsTable;
+  customer_packages: CustomerPackagesTable;
 }
