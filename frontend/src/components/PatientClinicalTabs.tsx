@@ -16,8 +16,9 @@ import { NewPrescriptionDialog } from './NewPrescriptionDialog';
 import { DocumentsTab } from './DocumentsTab';
 import { SpendingTab } from './SpendingTab';
 import { ConditionsTab } from './ConditionsTab';
+import { BillingTab } from './BillingTab';
 
-type Tab = 'conditions' | 'prescriptions' | 'appointments' | 'documents' | 'spending';
+type Tab = 'conditions' | 'prescriptions' | 'appointments' | 'documents' | 'spending' | 'billing';
 
 export function PatientClinicalTabs({ patientId }: { patientId: string }) {
   const can = useAuthStore((s) => s.can);
@@ -28,6 +29,7 @@ export function PatientClinicalTabs({ patientId }: { patientId: string }) {
     { id: 'documents', label: 'Tài liệu', visible: can('document:read') },
     { id: 'appointments', label: 'Lịch hẹn', visible: can('appointment:read') },
     { id: 'spending', label: 'Chi tiêu', visible: can('spending:read') },
+    { id: 'billing', label: 'Thanh toán', visible: can('billing:read') },
   ];
 
   const visible = tabs.filter((t) => t.visible);
@@ -66,6 +68,7 @@ export function PatientClinicalTabs({ patientId }: { patientId: string }) {
         {tab === 'documents' && <DocumentsTab patientId={patientId} />}
         {tab === 'appointments' && <AppointmentsTab patientId={patientId} />}
         {tab === 'spending' && <SpendingTab patientId={patientId} />}
+        {tab === 'billing' && <BillingTab patientId={patientId} />}
       </div>
     </section>
   );

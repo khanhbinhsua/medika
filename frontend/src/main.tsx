@@ -21,6 +21,7 @@ import { MarketingPage } from './pages/MarketingPage';
 import { SurveysPage } from './pages/SurveysPage';
 import { SpendingPage } from './pages/SpendingPage';
 import { BranchesPage } from './pages/BranchesPage';
+import { BillingPage } from './pages/BillingPage';
 import { PublicBookingPage } from './pages/PublicBookingPage';
 import { BookingInboxPage } from './pages/BookingInboxPage';
 import { UsersPage } from './pages/UsersPage';
@@ -161,6 +162,10 @@ function App() {
 
             <Route element={<ProtectedRoute requiredPermissions={['booking:manage']} />}>
               <Route path="/dat-lich-online" element={<BookingInboxPage />} />
+            </Route>
+
+            <Route element={<ProtectedRoute requiredPermissions={['billing:read']} />}>
+              <Route path="/thu-ngan" element={<BillingPage />} />
             </Route>
 
             <Route element={<ProtectedRoute requiredPermissions={['audit:read']} />}>

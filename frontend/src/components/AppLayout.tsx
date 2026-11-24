@@ -31,6 +31,7 @@ const GROUPS: NavGroup[] = [
       { to: '/benh-nhan', label: 'Bệnh nhân', icon: 'patients', permission: 'patient:read' },
       { to: '/lich-hen', label: 'Lịch hẹn', icon: 'calendar', permission: 'appointment:read' },
       { to: '/dat-lich-online', label: 'Đặt lịch online', icon: 'booking', permission: 'booking:manage' },
+      { to: '/thu-ngan', label: 'Thu ngân', icon: 'wallet', permission: 'billing:read' },
     ],
   },
   {
