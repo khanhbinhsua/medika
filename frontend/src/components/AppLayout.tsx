@@ -3,6 +3,7 @@ import { useAuthStore, ROLE_LABELS } from '../stores/auth.store';
 import { cx } from './ui';
 import { IdleGuard } from './IdleGuard';
 import { ThemeToggle } from './ThemeToggle';
+import { BranchSwitcher } from './BranchSwitcher';
 
 interface NavItem {
   to: string;
@@ -21,6 +22,7 @@ const NAV: NavItem[] = [
   { to: '/thong-bao', label: 'Thông báo', permission: 'notification:manage' },
   { to: '/bao-cao', label: 'Báo cáo', permission: 'report:read' },
   { to: '/nhan-vien', label: 'Nhân viên', permission: 'user:read' },
+  { to: '/chi-nhanh', label: 'Chi nhánh', permission: 'branch:manage' },
   { to: '/nhat-ky', label: 'Nhật ký kiểm toán', permission: 'audit:read' },
 ];
 
@@ -76,6 +78,8 @@ export function AppLayout() {
               </NavLink>
             ))}
           </nav>
+
+          <BranchSwitcher />
 
           <ThemeToggle />
 

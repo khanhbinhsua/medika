@@ -42,6 +42,7 @@ export interface UsersTable {
   full_name: string;
   role_id: string;
   status: Generated<UserStatus>;
+  locale: Generated<string>;
   mfa_enabled: Generated<boolean>;
   failed_login_attempts: Generated<number>;
   locked_until: Timestamp | null;
@@ -177,6 +178,7 @@ export interface AppointmentsTable {
   id: Generated<string>;
   patient_id: string;
   doctor_id: string;
+  branch_id: string | null;
   scheduled_start: Timestamp;
   scheduled_end: Timestamp;
   room: string | null;
@@ -569,6 +571,27 @@ export interface Icd10CodesTable {
   search: string;
 }
 
+export interface BranchesTable {
+  id: Generated<string>;
+  code: string | null;
+  name: string;
+  address: string | null;
+  phone: string | null;
+  geo_radius_m: number | null;
+  opening_hours: ColumnType<Record<string, unknown>, string | undefined, string>;
+  holidays: ColumnType<unknown[], string | undefined, string>;
+  slot_capacity: number | null;
+  is_default: Generated<boolean>;
+  active: Generated<boolean>;
+  created_at: Timestamp;
+  updated_at: Timestamp;
+}
+
+export interface UserBranchesTable {
+  user_id: string;
+  branch_id: string;
+}
+
 export interface Database {
   roles: RolesTable;
   permissions: PermissionsTable;
@@ -609,4 +632,6 @@ export interface Database {
   patient_transactions: PatientTransactionsTable;
   spending_tiers: SpendingTiersTable;
   icd10_codes: Icd10CodesTable;
+  branches: BranchesTable;
+  user_branches: UserBranchesTable;
 }

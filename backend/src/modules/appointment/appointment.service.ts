@@ -67,6 +67,13 @@ export async function createAppointment(
   return db.transaction().execute(async (trx) => {
     const patient = await loadPatientKey(trx, input.patientId);
     const dek = await loadDek(trx, patient.dek_id);
+    // Mốc 0 đa chi nhánh: gắn lịch vào chi nhánh mặc định (chọn chi nhánh cụ thể
+    // sẽ bổ sung khi làm lại màn lịch hẹn ở Mốc 1).
+    const defaultBranch = await trx
+      .selectFrom('branches')
+      .select('id')
+      .where('is_default', '=', true)
+      .executeTakeFirst();
 
     try {
       const row = await trx
@@ -74,6 +81,7 @@ export async function createAppointment(
         .values({
           patient_id: input.patientId,
           doctor_id: input.doctorId,
+          branch_id: defaultBranch?.id ?? null,
           scheduled_start: new Date(input.scheduledStart),
           scheduled_end: new Date(input.scheduledEnd),
           room: input.room ?? null,

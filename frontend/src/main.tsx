@@ -20,6 +20,7 @@ import { NotificationsPage } from './pages/NotificationsPage';
 import { MarketingPage } from './pages/MarketingPage';
 import { SurveysPage } from './pages/SurveysPage';
 import { SpendingPage } from './pages/SpendingPage';
+import { BranchesPage } from './pages/BranchesPage';
 import { UsersPage } from './pages/UsersPage';
 import { PublicSurveyPage } from './pages/PublicSurveyPage';
 import { useAuthStore } from './stores/auth.store';
@@ -149,6 +150,10 @@ function App() {
 
             <Route element={<ProtectedRoute requiredPermissions={['user:read']} />}>
               <Route path="/nhan-vien" element={<UsersPage />} />
+            </Route>
+
+            <Route element={<ProtectedRoute requiredPermissions={['branch:manage']} />}>
+              <Route path="/chi-nhanh" element={<BranchesPage />} />
             </Route>
 
             <Route element={<ProtectedRoute requiredPermissions={['audit:read']} />}>

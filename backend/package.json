@@ -37,6 +37,7 @@
     "smoke:reminders": "tsx src/db/reset-dev-mfa.ts && node scripts/smoke-reminders.mjs",
     "smoke:reports": "tsx src/db/reset-dev-mfa.ts && node scripts/smoke-reports.mjs",
     "smoke:conditions": "tsx src/db/reset-dev-mfa.ts && node scripts/smoke-conditions.mjs",
+    "smoke:branches": "tsx src/db/reset-dev-mfa.ts && node scripts/smoke-branches.mjs",
     "smoke:portal": "tsx src/db/reset-dev-mfa.ts && node scripts/smoke-portal.mjs",
     "smoke:notifications": "tsx src/db/reset-dev-mfa.ts && node scripts/smoke-notifications.mjs",
     "smoke:treatment": "tsx src/db/reset-dev-mfa.ts && node scripts/smoke-treatment.mjs",
