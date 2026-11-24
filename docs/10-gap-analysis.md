@@ -21,6 +21,23 @@ nghiệp vụ) · ❌ chưa làm (không có module/route/page).
 → **Phần lõi (must) đã đi được quá nửa**, nhưng còn ~15 mục must dở/thiếu. Phần should/could
 (đa kênh, kho, khiếu nại, hoa hồng, HRM, phân tích nâng cao, mobile) **gần như chưa bắt đầu**.
 
+## Cập nhật tiến độ (2026-11-25) — đã làm xong 11 mục "must còn dở"
+
+Triển khai theo 3 đợt (xem `docs/10-gap-analysis.md` lịch sử + git log). **#19** (cảnh báo dị
+ứng đầu lượt khám) hoá ra **đã có sẵn** trong `ExamDialog`. Các mục 🟡 còn lại đã ✅ xong:
+
+- **Đợt 1**: #6 4 ô KPI hồ sơ (chi tiêu/công nợ/buổi còn lại/lượt đến) · #5 banner dị ứng đầu
+  hồ sơ · #18 thêm 2 ô sinh hiệu (chiều cao, SpO₂) · #31a xuất Excel sổ thu.
+- **Đợt 2**: #22 in đơn thuốc (HTML) · #31b in biên nhận (HTML) · #9 lọc lịch (bác sĩ/phòng/
+  nguồn/chi nhánh) + badge đếm · #30 trừ buổi gói khi hoàn tất lịch (migration 032).
+- **Đợt 3**: #8 lịch ngày/tuần/tháng (react-big-calendar) + #12 bảng trạng thái (đếm phút
+  chờ, viền cảnh báo) · #3 tìm toàn cục trên topbar (tên/SĐT đúng toàn chuỗi; MRN/mã đơn một phần).
+
+**Còn hoãn (cần quyết định/ngoài phạm vi 11 mục):** #7 đủ 11 tab hồ sơ (hiện 8 — chốt 3 tab
+còn lại); #18 danh sách chọn sẵn sinh hiệu (cần bộ giá trị mẫu); #5 banner khiếu nại + "lưu ý
+lần tới" (chờ module complaints). **Kiểm thử:** build+lint xanh cả BE/FE; chưa chạy runtime
+(worktree chưa cấu hình DB/env) nên lịch/bảng chưa test trên trình duyệt.
+
 ---
 
 ## A. MUST — bắt buộc cho bản dùng được

@@ -144,7 +144,8 @@ export async function listPatients(query: ListPatientsQuery, actor: Actor, meta:
     base = base.where('status', '=', query.status);
   }
 
-  // Cột đã mã hoá không LIKE được — tìm kiếm đi qua HMAC nên chỉ khớp chính xác.
+  // Cột đã mã hoá không LIKE được — tên/email/SĐT đi qua HMAC nên chỉ khớp CHÍNH XÁC
+  // toàn chuỗi. MRN là plaintext nên cho khớp một phần (ILIKE) — phục vụ tìm theo mã khách.
   if (query.q) {
     const hash = searchHash(query.q);
     base = base.where((eb) =>
@@ -152,6 +153,7 @@ export async function listPatients(query: ListPatientsQuery, actor: Actor, meta:
         eb('name_search_hash', '=', hash),
         eb('email_search_hash', '=', hash),
         eb('phone_search_hash', '=', hash),
+        eb('mrn', 'ilike', `%${query.q}%`),
       ]),
     );
   }
