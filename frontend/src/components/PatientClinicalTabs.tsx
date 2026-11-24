@@ -9,6 +9,8 @@ import {
   formatTimeRange,
   statusTone,
 } from '../lib/clinical';
+import { fetchPatient, fullName } from '../lib/patients';
+import { printPrescriptions } from '../lib/print';
 import { getErrorMessage } from '../lib/api-client';
 import { useAuthStore } from '../stores/auth.store';
 import { Button, Alert, Badge, Skeleton, cx } from './ui';
@@ -91,18 +93,29 @@ function PrescriptionsTab({ patientId }: { patientId: string }) {
     queryKey: ['prescriptions', patientId],
     queryFn: () => fetchPrescriptions(patientId),
   });
+  const patient = useQuery({ queryKey: ['patient', patientId], queryFn: () => fetchPatient(patientId) });
 
   if (isError) return <Alert>{getErrorMessage(error)}</Alert>;
 
+  const onPrint = () => {
+    if (!data || !patient.data) return;
+    printPrescriptions({ patientName: fullName(patient.data), mrn: patient.data.mrn, items: data });
+  };
+
   return (
     <div className="space-y-3">
-      {can('prescription:write') && (
-        <div className="flex justify-end">
+      <div className="flex justify-end gap-2">
+        {data && data.length > 0 && (
+          <Button variant="ghost" className="h-8 px-3 text-xs" disabled={!patient.data} onClick={onPrint}>
+            In đơn
+          </Button>
+        )}
+        {can('prescription:write') && (
           <Button className="h-8 px-3 text-xs" onClick={() => setCreating(true)}>
             Kê đơn
           </Button>
-        </div>
-      )}
+        )}
+      </div>
 
       {isPending ? (
         <Skeleton className="h-20 w-full" />

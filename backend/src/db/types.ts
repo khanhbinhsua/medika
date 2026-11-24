@@ -179,6 +179,7 @@ export interface AppointmentsTable {
   patient_id: string;
   doctor_id: string;
   branch_id: string | null;
+  customer_package_id: string | null;
   source: Generated<string>;
   scheduled_start: Timestamp;
   scheduled_end: Timestamp;
