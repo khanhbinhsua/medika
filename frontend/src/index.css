@@ -1,0 +1,156 @@
+/* Font tự host — không gọi Google Fonts, tránh rò IP người dùng sang bên thứ ba
+   (nguyên tắc tối thiểu hoá dữ liệu, và giữ CSP default-src 'self' sạch).
+   Chỉ nạp subset latin + vietnamese; bỏ cyrillic/greek để bundle không phình. */
+@import '@fontsource/ibm-plex-sans/latin-400.css';
+@import '@fontsource/ibm-plex-sans/latin-500.css';
+@import '@fontsource/ibm-plex-sans/latin-600.css';
+@import '@fontsource/ibm-plex-sans/latin-700.css';
+@import '@fontsource/ibm-plex-sans/vietnamese-400.css';
+@import '@fontsource/ibm-plex-sans/vietnamese-500.css';
+@import '@fontsource/ibm-plex-sans/vietnamese-600.css';
+@import '@fontsource/ibm-plex-sans/vietnamese-700.css';
+@import '@fontsource/ibm-plex-mono/latin-400.css';
+@import '@fontsource/ibm-plex-mono/latin-500.css';
+@import '@fontsource/ibm-plex-mono/latin-600.css';
+@import '@fontsource/ibm-plex-mono/vietnamese-400.css';
+@import '@fontsource/ibm-plex-mono/vietnamese-500.css';
+@import '@fontsource/ibm-plex-mono/vietnamese-600.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Hệ màu: "khí cụ lâm sàng" ────────────────────────────────────────
+   Nền giấy, đường kẻ tóc thay vì đổ bóng, một màu nhấn teal y tế duy nhất.
+   Ngữ nghĩa cảnh báo tách riêng để mức độ dị ứng / chỉ số bất thường đọc
+   được ngay mà không cần chú giải.                                      */
+:root {
+  --ink: 15 23 32;
+  --ink-soft: 71 85 96;
+  --ink-faint: 130 144 155;
+
+  --paper: 250 250 248;
+  --surface: 255 255 255;
+  --surface-sunk: 244 245 243;
+
+  --rule: 216 220 220;
+  --rule-strong: 184 190 190;
+
+  --accent: 13 125 138;
+  --accent-deep: 8 92 102;
+  --accent-wash: 232 245 246;
+
+  --danger: 178 40 38;
+  --danger-wash: 253 238 237;
+  --warn: 166 106 12;
+  --warn-wash: 253 246 232;
+  --ok: 27 116 79;
+  --ok-wash: 234 246 240;
+
+  --grid-line: 0 0 0 / 0.035;
+}
+
+.dark {
+  --ink: 232 236 236;
+  --ink-soft: 158 170 172;
+  --ink-faint: 112 126 130;
+
+  --paper: 13 17 20;
+  --surface: 20 25 29;
+  --surface-sunk: 16 20 24;
+
+  --rule: 44 53 58;
+  --rule-strong: 66 78 84;
+
+  --accent: 45 189 199;
+  --accent-deep: 125 226 232;
+  --accent-wash: 18 45 49;
+
+  --danger: 240 130 126;
+  --danger-wash: 51 24 24;
+  --warn: 226 168 74;
+  --warn-wash: 46 34 14;
+  --ok: 92 199 148;
+  --ok-wash: 16 42 31;
+
+  --grid-line: 255 255 255 / 0.035;
+}
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body {
+    @apply bg-paper text-ink;
+    font-family: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+    font-feature-settings: 'cv05' 1;
+    /* Lưới nền mảnh, gợi giấy kẻ ô của biểu mẫu xét nghiệm */
+    background-image:
+      linear-gradient(to right, rgb(var(--grid-line)) 1px, transparent 1px),
+      linear-gradient(to bottom, rgb(var(--grid-line)) 1px, transparent 1px);
+    background-size: 32px 32px;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  /* Số liệu, mã, ID luôn dùng font đều nét để cột thẳng hàng khi quét mắt */
+  .tabular {
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-variant-numeric: tabular-nums;
+  }
+
+  :focus-visible {
+    outline: 2px solid rgb(var(--accent));
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background: rgb(var(--accent) / 0.2);
+  }
+}
+
+@layer components {
+  /* Nhãn nhỏ in hoa dùng cho tiêu đề trường — ngôn ngữ của biểu mẫu y tế */
+  .field-label {
+    @apply text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-faint;
+  }
+
+  /* Tấm dữ liệu: viền kẻ tóc, không đổ bóng — như tem dán mẫu bệnh phẩm */
+  .plate {
+    @apply border border-rule bg-surface;
+  }
+
+  .rule-t {
+    @apply border-t border-rule;
+  }
+}
+
+/* Tôn trọng người dùng tắt hiệu ứng chuyển động */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.rise {
+  animation: rise 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+}

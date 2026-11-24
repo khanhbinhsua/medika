@@ -1,0 +1,583 @@
+openapi: 3.0.3
+info:
+  title: CRM Y Tế HIPAA — API
+  version: 0.1.0
+  description: |
+    API cho hệ thống CRM y tế tuân thủ HIPAA.
+
+    **Xác thực**: Bearer JWT (access token, TTL 15 phút). Refresh token đi qua
+    httpOnly cookie. Mọi endpoint chạm PHI đều ghi `phi_access_logs`.
+
+    **Idle timeout**: 30 phút không hoạt động → session bị thu hồi (HIPAA §164.312(a)(2)(iii)).
+servers:
+  - url: http://localhost:4100/api
+    description: Dev
+  - url: https://staging.crm-dk.internal/api
+    description: Staging
+
+tags:
+  - name: Health
+  - name: Auth
+  - name: Patients
+  - name: Appointments
+  - name: Medical Records
+  - name: Audit
+
+security:
+  - bearerAuth: []
+
+paths:
+  /health:
+    get:
+      tags: [Health]
+      summary: Liveness probe
+      security: []
+      responses:
+        '200':
+          description: Server sống
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, example: ok }
+                  timestamp: { type: string, format: date-time }
+
+  /health/ready:
+    get:
+      tags: [Health]
+      summary: Readiness probe (kiểm tra DB)
+      security: []
+      responses:
+        '200': { description: Sẵn sàng nhận traffic }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Bước 1 — xác thực bằng email + mật khẩu
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string, format: password, minLength: 12 }
+      responses:
+        '200':
+          description: |
+            Ba khả năng tuỳ trạng thái tài khoản:
+            - `mfaRequired` — đã bật MFA, cần nhập mã TOTP tại `/auth/mfa/verify`
+            - `mfaEnrollmentRequired` — mật khẩu đúng nhưng chưa đăng ký MFA;
+              dùng `enrollmentToken` với `/auth/mfa/enroll/*` để đăng ký
+            - `AuthSuccess` — chỉ xảy ra khi `MFA_REQUIRED=false` (dev)
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/MfaRequired'
+                  - $ref: '#/components/schemas/MfaEnrollmentRequired'
+                  - $ref: '#/components/schemas/AuthSuccess'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '423':
+          description: Tài khoản bị khoá tạm thời do quá số lần đăng nhập sai
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /auth/mfa/verify:
+    post:
+      tags: [Auth]
+      summary: Bước 2 — xác thực mã TOTP
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [mfaToken, code]
+              properties:
+                mfaToken: { type: string, description: Token nhận từ /auth/login }
+                code: { type: string, pattern: '^[0-9]{6}$' }
+      responses:
+        '200':
+          description: Đăng nhập thành công
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthSuccess' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /auth/mfa/enroll/start:
+    post:
+      tags: [Auth]
+      summary: Bắt đầu đăng ký MFA cho tài khoản chưa có MFA
+      description: |
+        Dùng `enrollmentToken` nhận được từ `/auth/login`. Đây là lối thoát cho
+        tài khoản mới: chưa bật MFA thì không đăng nhập được, mà không đăng nhập
+        thì không gọi được `/auth/mfa/setup` (endpoint đó cần access token).
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [enrollmentToken]
+              properties:
+                enrollmentToken: { type: string }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  otpauthUrl: { type: string, description: Nạp vào app Authenticator (QR) }
+                  recoveryCodes:
+                    type: array
+                    items: { type: string }
+                    description: 10 mã, chỉ hiển thị MỘT LẦN duy nhất
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409': { description: Tài khoản đã bật MFA }
+
+  /auth/mfa/enroll/confirm:
+    post:
+      tags: [Auth]
+      summary: Xác nhận mã TOTP, bật MFA và đăng nhập luôn
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [enrollmentToken, code]
+              properties:
+                enrollmentToken: { type: string }
+                code: { type: string, pattern: '^[0-9]{6}$' }
+      responses:
+        '200':
+          description: MFA đã bật, trả về phiên đăng nhập
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthSuccess' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /auth/mfa/recovery:
+    post:
+      tags: [Auth]
+      summary: Đăng nhập bằng mã khôi phục khi mất thiết bị TOTP
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [mfaToken, recoveryCode]
+              properties:
+                mfaToken: { type: string }
+                recoveryCode: { type: string }
+      responses:
+        '200':
+          description: Đăng nhập thành công, mã khôi phục đã dùng bị huỷ
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthSuccess' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /auth/mfa/setup:
+    post:
+      tags: [Auth]
+      summary: Khởi tạo TOTP, trả về QR provisioning URI và recovery codes
+      responses:
+        '200':
+          description: Secret đã tạo, chờ xác nhận
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  otpauthUrl: { type: string }
+                  recoveryCodes:
+                    type: array
+                    items: { type: string }
+                    description: Chỉ hiển thị MỘT LẦN duy nhất
+
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Đổi refresh token (cookie) lấy access token mới
+      security: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthSuccess' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Thu hồi session hiện tại
+      responses:
+        '204': { description: Đã đăng xuất }
+
+  /auth/me:
+    get:
+      tags: [Auth]
+      summary: Thông tin người dùng hiện tại và danh sách quyền
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CurrentUser' }
+
+  /patients:
+    get:
+      tags: [Patients]
+      summary: Danh sách bệnh nhân (phân trang)
+      description: Yêu cầu quyền `patient:read`. Mỗi lần gọi ghi `phi_access_logs`.
+      parameters:
+        - { in: query, name: page, schema: { type: integer, minimum: 1, default: 1 } }
+        - { in: query, name: pageSize, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+        - in: query
+          name: q
+          schema: { type: string }
+          description: Tìm chính xác theo tên/email/sđt (khớp qua search hash)
+        - { in: query, name: status, schema: { type: string, enum: [active, inactive, deceased, merged] } }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/PatientSummary' }
+                  pagination: { $ref: '#/components/schemas/Pagination' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [Patients]
+      summary: Tạo hồ sơ bệnh nhân
+      description: Yêu cầu quyền `patient:write`. Sinh DEK riêng cho bệnh nhân.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PatientInput' }
+      responses:
+        '201':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Patient' }
+        '409': { description: MRN đã tồn tại }
+
+  /patients/{patientId}:
+    parameters:
+      - { in: path, name: patientId, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [Patients]
+      summary: Chi tiết hồ sơ bệnh nhân
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Patient' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [Patients]
+      summary: Cập nhật hồ sơ
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PatientInput' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Patient' }
+    delete:
+      tags: [Patients]
+      summary: Xoá mềm hồ sơ (yêu cầu `patient:delete`)
+      responses:
+        '204': { description: Đã xoá mềm }
+
+  /appointments:
+    get:
+      tags: [Appointments]
+      summary: Danh sách lịch hẹn
+      parameters:
+        - { in: query, name: from, schema: { type: string, format: date-time } }
+        - { in: query, name: to, schema: { type: string, format: date-time } }
+        - { in: query, name: doctorId, schema: { type: string, format: uuid } }
+        - { in: query, name: patientId, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Appointment' }
+    post:
+      tags: [Appointments]
+      summary: Đặt lịch hẹn
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AppointmentInput' }
+      responses:
+        '201':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Appointment' }
+        '409': { description: Bác sĩ đã có lịch trùng giờ }
+
+  /patients/{patientId}/records:
+    parameters:
+      - { in: path, name: patientId, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [Medical Records]
+      summary: Hồ sơ y tế của bệnh nhân (yêu cầu `record:read`)
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/MedicalRecord' }
+    post:
+      tags: [Medical Records]
+      summary: Tạo hồ sơ y tế (yêu cầu `record:write`)
+      responses:
+        '201':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MedicalRecord' }
+
+  /audit/logs:
+    get:
+      tags: [Audit]
+      summary: Truy vấn audit log (yêu cầu `audit:read`)
+      parameters:
+        - { in: query, name: actorId, schema: { type: string, format: uuid } }
+        - { in: query, name: action, schema: { type: string } }
+        - { in: query, name: from, schema: { type: string, format: date-time } }
+        - { in: query, name: to, schema: { type: string, format: date-time } }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/AuditLogEntry' }
+                  pagination: { $ref: '#/components/schemas/Pagination' }
+
+  /audit/chain-verification:
+    get:
+      tags: [Audit]
+      summary: Kiểm tra tính toàn vẹn chuỗi hash của audit log
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  valid: { type: boolean }
+                  entriesChecked: { type: integer }
+                  brokenAtId: { type: string, nullable: true }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    MfaRequired:
+      type: object
+      properties:
+        mfaRequired: { type: boolean, enum: [true] }
+        mfaToken: { type: string, description: Sống 5 phút, không cấp quyền }
+
+    MfaEnrollmentRequired:
+      type: object
+      properties:
+        mfaEnrollmentRequired: { type: boolean, enum: [true] }
+        enrollmentToken:
+          type: string
+          description: Sống 10 phút, chỉ dùng được cho /auth/mfa/enroll/*
+
+    AuthSuccess:
+      type: object
+      properties:
+        accessToken: { type: string }
+        expiresIn: { type: integer, example: 900 }
+        user: { $ref: '#/components/schemas/CurrentUser' }
+
+    CurrentUser:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        email: { type: string, format: email }
+        fullName: { type: string }
+        role: { type: string, enum: [admin, doctor, nurse, receptionist, auditor] }
+        permissions:
+          type: array
+          items: { type: string }
+
+    PatientSummary:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        mrn: { type: string }
+        firstName: { type: string }
+        lastName: { type: string }
+        dob: { type: string, format: date }
+        gender: { type: string, nullable: true }
+        status: { type: string, enum: [active, inactive, deceased, merged] }
+
+    Patient:
+      allOf:
+        - $ref: '#/components/schemas/PatientSummary'
+        - type: object
+          properties:
+            email: { type: string, nullable: true }
+            phone: { type: string, nullable: true }
+            address: { type: string, nullable: true }
+            insuranceId: { type: string, nullable: true }
+            allergies:
+              type: array
+              items:
+                type: object
+                properties:
+                  id: { type: string, format: uuid }
+                  allergyName: { type: string }
+                  reaction: { type: string, nullable: true }
+                  severity: { type: string, enum: [mild, moderate, severe, life_threatening] }
+            createdAt: { type: string, format: date-time }
+            updatedAt: { type: string, format: date-time }
+
+    PatientInput:
+      type: object
+      required: [firstName, lastName, dob]
+      properties:
+        firstName: { type: string, minLength: 1, maxLength: 100 }
+        lastName: { type: string, minLength: 1, maxLength: 100 }
+        dob: { type: string, format: date }
+        gender: { type: string, nullable: true }
+        email: { type: string, format: email, nullable: true }
+        phone: { type: string, nullable: true }
+        address: { type: string, nullable: true }
+        insuranceId: { type: string, nullable: true }
+
+    Appointment:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        patientId: { type: string, format: uuid }
+        doctorId: { type: string, format: uuid }
+        scheduledStart: { type: string, format: date-time }
+        scheduledEnd: { type: string, format: date-time }
+        room: { type: string, nullable: true }
+        status:
+          type: string
+          enum: [scheduled, confirmed, checked_in, in_progress, completed, cancelled, no_show]
+        reason: { type: string, nullable: true }
+
+    AppointmentInput:
+      type: object
+      required: [patientId, doctorId, scheduledStart, scheduledEnd]
+      properties:
+        patientId: { type: string, format: uuid }
+        doctorId: { type: string, format: uuid }
+        scheduledStart: { type: string, format: date-time }
+        scheduledEnd: { type: string, format: date-time }
+        room: { type: string, nullable: true }
+        reason: { type: string, nullable: true }
+
+    MedicalRecord:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        patientId: { type: string, format: uuid }
+        providerId: { type: string, format: uuid }
+        recordType:
+          type: string
+          enum: [consultation, diagnosis, progress_note, discharge_summary, referral, other]
+        title: { type: string }
+        content: { type: string, description: Đã giải mã phía server }
+        icd10Code: { type: string, nullable: true }
+        version: { type: integer }
+        isSigned: { type: boolean }
+        recordDate: { type: string, format: date-time }
+
+    AuditLogEntry:
+      type: object
+      properties:
+        id: { type: string }
+        requestId: { type: string, format: uuid, nullable: true }
+        actorId: { type: string, format: uuid, nullable: true }
+        actorEmail: { type: string, nullable: true }
+        action: { type: string }
+        entityType: { type: string, nullable: true }
+        entityId: { type: string, format: uuid, nullable: true }
+        outcome: { type: string, enum: [success, failure, denied] }
+        ipAddress: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+
+    Pagination:
+      type: object
+      properties:
+        page: { type: integer }
+        pageSize: { type: integer }
+        total: { type: integer }
+        totalPages: { type: integer }
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code: { type: string }
+            message: { type: string }
+            requestId: { type: string, format: uuid }
+
+  responses:
+    Unauthorized:
+      description: Chưa xác thực hoặc token không hợp lệ
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Forbidden:
+      description: Không đủ quyền
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    NotFound:
+      description: Không tìm thấy
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    RateLimited:
+      description: Vượt giới hạn tần suất
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    InternalError:
+      description: Lỗi hệ thống
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }

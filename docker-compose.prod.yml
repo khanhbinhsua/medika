@@ -1,0 +1,74 @@
+# Docker Compose để KIỂM CHỨNG bộ image production tại chỗ (build + boot + proxy).
+#
+# ĐÂY KHÔNG PHẢI cấu hình production thật. Production trên AWS:
+#   - Backend chạy ECS Fargate, KEK_PROVIDER=aws-kms, STORAGE_PROVIDER=s3,
+#     NODE_ENV=production, secret lấy từ Secrets Manager.
+#   - Database dùng RDS PostgreSQL (backup tự động + PITR), không phải container.
+#   - Frontend sau CloudFront/ALB với TLS.
+#
+# File này chỉ để chạy thử image đã build có hoạt động không, nên dùng
+# NODE_ENV=development + KEK cục bộ (env.ts chặn KEK cục bộ khi NODE_ENV=production).
+# Khoá dưới đây là khoá THỬ — không bao giờ dùng cho dữ liệu thật.
+
+name: crm-dk-prod-test
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: crm_app
+      POSTGRES_PASSWORD: prodtest_changeme
+      POSTGRES_DB: crm_dk
+    volumes:
+      - prod_test_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U crm_app -d crm_dk']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Chạy migration một lần rồi thoát (dùng stage 'migrate' của Dockerfile).
+  migrate:
+    build:
+      context: ./backend
+      target: migrate
+    environment:
+      DATABASE_URL: postgresql://crm_app:prodtest_changeme@db:5432/crm_dk
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: 'no'
+
+  backend:
+    build:
+      context: ./backend
+      target: runtime
+    restart: unless-stopped
+    environment:
+      NODE_ENV: development # THỬ: cho phép KEK cục bộ. Production dùng 'production' + KMS.
+      PORT: '4100'
+      DATABASE_URL: postgresql://crm_app:prodtest_changeme@db:5432/crm_dk
+      JWT_ACCESS_SECRET: tBnNT31tKNGTsAQaJv9owpKo_xiH7zTkVGt-iG_bGs8bpPSXEWeqPXzzyVnGf1YB
+      KEK_PROVIDER: local
+      KEK_LOCAL_KEY: oHBULL4/M4UOhiG7Y8+RgTlm4whP4uRgijOakKM1lII=
+      SEARCH_HMAC_KEY: irdsNp71mUoKkPAAYpU3Nw6bIN10P0HMg9XgK75+giQ=
+      CORS_ORIGINS: http://localhost:8080
+      MFA_REQUIRED: 'true'
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+  frontend:
+    build:
+      context: ./frontend
+    restart: unless-stopped
+    ports:
+      - '8080:8080'
+    depends_on:
+      - backend
+
+volumes:
+  prod_test_pgdata:

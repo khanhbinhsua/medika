@@ -1,0 +1,147 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Huỷ lần chạy cũ khi có commit mới trên cùng nhánh/PR.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend — lint, typecheck, unit + smoke
+    runs-on: ubuntu-latest
+
+    # Postgres thật cho migration + smoke test (không mock DB).
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: crm_app
+          POSTGRES_PASSWORD: ci_test_password
+          POSTGRES_DB: crm_dk
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U crm_app -d crm_dk"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+
+    env:
+      NODE_ENV: development
+      DATABASE_URL: postgresql://crm_app:ci_test_password@localhost:5432/crm_dk
+      # Secret THỬ chỉ cho CI — không phải giá trị production.
+      JWT_ACCESS_SECRET: ci-only-secret-do-not-use-in-production-0000
+      KEK_PROVIDER: local
+      KEK_LOCAL_KEY: oHBULL4/M4UOhiG7Y8+RgTlm4whP4uRgijOakKM1lII=
+      SEARCH_HMAC_KEY: irdsNp71mUoKkPAAYpU3Nw6bIN10P0HMg9XgK75+giQ=
+      # Nới rate-limit để chạy nhiều smoke trong một lượt.
+      RATE_LIMIT_MAX: '5000'
+      LOGIN_RATE_LIMIT_MAX: '1000'
+      PATIENT_PURGE_GRACE_HOURS: '1'
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Chạy migration
+        run: npm run migrate:up
+
+      - name: Seed dữ liệu dev
+        run: npm run seed
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Verify mã hoá tại chỗ
+        run: npm run verify:encryption
+
+      # Smoke test cần server đang chạy — khởi động nền rồi chờ health.
+      - name: Khởi động API (nền)
+        run: |
+          npx tsx src/server.ts &
+          echo $! > /tmp/api.pid
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:4100/api/health && break
+            sleep 1
+          done
+
+      - name: Smoke test đầy đủ
+        run: |
+          npm run smoke
+          npm run smoke:phase2
+          npm run smoke:phase3
+          npm run smoke:purge
+          npm run smoke:lab-docs
+          npm run smoke:reports
+          npm run smoke:integration
+          npm run smoke:portal
+
+      - name: Dừng API
+        if: always()
+        run: kill "$(cat /tmp/api.pid)" || true
+
+  frontend:
+    name: Frontend — typecheck + build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - name: Lint
+        run: npm run lint
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Build
+        run: npm run build
+
+  audit:
+    name: Kiểm tra lỗ hổng dependencies (production)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # Chỉ chặn CI vì lỗ hổng ở dependencies PRODUCTION (bỏ qua devtool như vite/vitest).
+      - name: npm audit (backend, prod-only)
+        working-directory: backend
+        run: npm audit --omit=dev --audit-level=high
+
+  docker:
+    name: Build image production
+    runs-on: ubuntu-latest
+    # Build image để chắc Dockerfile không hỏng (không push — chỉ kiểm chứng build).
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build backend image
+        run: docker build -t crm-dk-backend:ci ./backend
+      - name: Build frontend image
+        run: docker build -t crm-dk-frontend:ci ./frontend

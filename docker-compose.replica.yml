@@ -1,0 +1,108 @@
+# Kiểm chứng PostgreSQL streaming replication + WAL archiving (HA + PITR) cho VPS.
+#
+# AWS RDS làm sẵn Multi-AZ + automated backup + PITR. Trên VPS phải tự dựng:
+#   - PRIMARY: wal_level=replica, archive_mode=on (lưu WAL cho PITR), cho phép
+#     replica kết nối streaming.
+#   - REPLICA (hot standby): pg_basebackup từ primary rồi stream WAL liên tục —
+#     read-only, sẵn sàng thăng cấp thành primary khi primary chết (failover).
+#
+# CẢNH BÁO: auth 'trust' + mật khẩu yếu chỉ để KIỂM CHỨNG tại chỗ. Production
+# dùng scram-sha-256, pg_hba giới hạn subnet, mật khẩu mạnh từ secrets, TLS.
+
+name: crm-dk-replica
+
+services:
+  # Volume WAL archive mặc định thuộc root — postgres (uid 70) không ghi được,
+  # archive_command sẽ fail. Chown về postgres trước khi primary khởi động.
+  wal-archive-init:
+    image: alpine:latest
+    command: chown -R 70:70 /wal_archive
+    volumes:
+      - wal_archive:/wal_archive
+    restart: 'no'
+
+  primary:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    depends_on:
+      wal-archive-init:
+        condition: service_completed_successfully
+    environment:
+      POSTGRES_USER: crm_app
+      POSTGRES_PASSWORD: repl_test_pw
+      POSTGRES_DB: crm_dk
+      # trust: đơn giản hoá kiểm chứng (gồm cả kết nối replication). Production: scram.
+      POSTGRES_HOST_AUTH_METHOD: trust
+    command:
+      - postgres
+      - -c
+      - wal_level=replica
+      - -c
+      - max_wal_senders=10
+      - -c
+      - max_replication_slots=10
+      - -c
+      - hot_standby=on
+      - -c
+      - archive_mode=on
+      - -c
+      - archive_command=test ! -f /wal_archive/%f && cp %p /wal_archive/%f
+    volumes:
+      - primary_data:/var/lib/postgresql/data
+      - wal_archive:/wal_archive
+      - ./backend/scripts/primary-pg-hba.sh:/docker-entrypoint-initdb.d/00-pg-hba.sh:ro
+      - ./backend/scripts/primary-init.sql:/docker-entrypoint-initdb.d/01-replicator.sql:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U crm_app -d crm_dk']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Khởi tạo replica bằng pg_basebackup từ primary (-R viết sẵn standby.signal
+  # + primary_conninfo), rồi thoát. Replica sẽ start trên data dir này.
+  replica-init:
+    image: postgres:16-alpine
+    depends_on:
+      primary:
+        condition: service_healthy
+    environment:
+      PGPASSWORD: repl_test_pw
+    entrypoint:
+      - sh
+      - -c
+      - |
+        set -e
+        if [ ! -f /replica_data/PG_VERSION ]; then
+          echo "Đang pg_basebackup từ primary..."
+          rm -rf /replica_data/* 2>/dev/null || true
+          pg_basebackup -h primary -p 5432 -U replicator -D /replica_data -Fp -Xs -R -P
+          echo "pg_basebackup xong — replica sẵn sàng khởi động"
+        else
+          echo "Replica đã khởi tạo từ trước, bỏ qua"
+        fi
+    volumes:
+      - replica_data:/replica_data
+    restart: 'no'
+
+  replica:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    depends_on:
+      replica-init:
+        condition: service_completed_successfully
+    environment:
+      POSTGRES_HOST_AUTH_METHOD: trust
+    volumes:
+      - replica_data:/var/lib/postgresql/data
+    ports:
+      - '5435:5432' # cổng host để kiểm chứng (đọc read-only)
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U crm_app -d crm_dk']
+      interval: 5s
+      timeout: 5s
+      retries: 15
+
+volumes:
+  primary_data:
+  replica_data:
+  wal_archive:

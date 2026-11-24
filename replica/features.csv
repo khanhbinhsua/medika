@@ -1,0 +1,79 @@
+feature,area,priority,original,clone,notes
+Đăng nhập + phân quyền theo vai trò và theo phân hệ,auth,must,yes,no,S01 S34
+Nhiều chi nhánh + chọn chi nhánh trên topbar,org,must,yes,no,S02; phí không tính theo chi nhánh
+Tìm toàn cục không dấu theo tên/SĐT/mã khách/mã đơn,search,must,yes,no,S02 S10 S18
+Nhật ký truy cập: ai/lúc nào/làm gì/IP (xem/in/sửa),security,must,yes,no,S35; repo EMR đã có AuditLog chỉ-INSERT
+Hồ sơ khách với banner dị ứng/khiếu nại mở/lưu ý lần tới,crm,must,yes,no,S11
+Hồ sơ khách 4 ô: chi tiêu/công nợ/buổi còn lại/lượt đến,crm,must,yes,no,S11
+Hồ sơ khách dạng tab (11 tab),crm,must,yes,no,S11
+Tự lưu mọi thay đổi (không nút Lưu),crm,should,yes,no,S11
+Ghi chú tư vấn viên và bác sĩ tách theo lần đến,crm,should,yes,no,S11
+Lịch hẹn ngày/tuần/tháng/danh sách,scheduling,must,yes,no,S05
+Lọc lịch theo nhân viên/phòng/nguồn/nhóm có đếm,scheduling,must,yes,no,S05
+Panel Lịch hẹn mới mở từ nhiều nơi với dữ liệu điền sẵn,scheduling,must,yes,no,S04
+Cảnh báo trùng phòng/giường/nhân sự,scheduling,must,yes,no,S04
+Bảng theo trạng thái với đếm phút chờ và viền cảnh báo,scheduling,must,yes,no,S06
+Đổi trạng thái lịch: đã đến/bắt đầu/hoàn tất,scheduling,must,yes,no,S06
+Lịch sử thay đổi lịch hẹn,scheduling,must,yes,no,S08
+Kéo thả đổi giờ/đổi phòng,scheduling,should,yes,no,S05
+Nhóm lịch hẹn có màu do phòng khám đặt,scheduling,should,yes,no,S34
+Hàng chờ theo máy với thời gian ước tính,scheduling,should,yes,no,S07
+In phiếu khám có số thứ tự và QR,scheduling,should,yes,no,S08
+Trang đặt lịch online công khai (giờ mở cửa/ngày lễ/sức chứa),booking,must,yes,no,S09; vào lịch ở trạng thái chưa xác nhận
+Email báo lịch mới và thư xác nhận cho khách,notifications,should,yes,no,S09
+Trang đặt lịch đa ngôn ngữ VI/EN/KO,booking,could,yes,no,S09
+Bệnh án ngoại trú mẫu 15/BV1 ghi từ lịch hẹn,emr,must,yes,no,S14; cần đối chiếu văn bản gốc mẫu 15/BV1
+Chẩn đoán ICD-10 bệnh chính + bệnh kèm,emr,must,yes,no,S14; danh mục ICD-10 của BYT
+Sinh hiệu và danh sách chọn sẵn cho từng mục,emr,must,yes,no,S14
+Cảnh báo dị ứng ở đầu lượt khám,emr,must,yes,no,S14
+Hoàn tất = xác nhận điện tử + khóa hồ sơ,emr,must,yes,no,S14; cần thêm luồng sửa bổ sung (amend)
+Kê đơn thuốc theo chẩn đoán (liều/buổi/ngày/lời dặn),eprescription,must,yes,no,S15
+Đơn mẫu theo chẩn đoán,eprescription,should,yes,no,S15
+Đơn đã xác nhận có mã đơn và PDF,eprescription,must,yes,no,S15
+Ảnh trước/sau theo lần khám kéo thả,emr,must,yes,no,S12; lưu MinIO/S3
+Phiếu đồng ý ký trên màn hình có người chứng kiến,emr,must,yes,no,S16
+Câu đồng ý xử lý dữ liệu cá nhân lưu cùng phiếu,privacy,must,yes,no,Luật BVDLCN 2025
+Ký số bác sĩ qua nhà cung cấp CA,emr,should,yes,no,adapter; phòng khám tự mua chữ ký số
+Người bệnh xác nhận qua VNeID/sinh trắc,emr,could,yes,no,phụ thuộc nhà cung cấp
+Liên thông đơn thuốc quốc gia,eprescription,should,yes,no,chỉ dựng adapter + giả lập; kết nối thật cần mã cơ sở/bác sĩ do BYT cấp
+Tạo đơn (POS): dịch vụ/gói/sản phẩm/thẻ trả trước,payments,must,yes,no,S17
+Mua gói và dùng buổi đầu trong cùng một đơn,payments,must,yes,no,S17 F03
+Nhiều phương thức thu trên một đơn + thu một phần,payments,must,yes,no,S17
+Công nợ theo khách có hạn trả/quá hạn,payments,must,yes,no,S19
+Gói theo buổi/shot tự trừ khi hoàn tất,payments,must,yes,no,S13
+Thẻ trả trước có tiền tặng/hạn dùng/mở khóa theo tiền đã trả,payments,should,yes,no,S13
+Chuyển nhượng buổi/số dư cho khách khác,payments,could,yes,no,S13
+Hạng thành viên theo chi tiêu,crm,could,yes,no,S11
+Sổ thanh toán có lọc/in biên nhận/xuất Excel,payments,must,yes,no,S18
+Hoàn tiền có bước duyệt và đảo hoàn,payments,should,yes,no,S20
+Quy đổi ngoại tệ theo tỷ giá,payments,could,yes,no,S17; nguồn tỷ giá cần chọn
+Lưu nháp giỏ hàng và in báo giá,payments,could,yes,no,S17
+Hóa đơn điện tử nháp sang MISA meInvoice,integrations,should,yes,no,qua API chính thức của MISA
+Hoa hồng nhân viên theo tiền thực thu,payments,should,yes,no,S21
+Bắt buộc thu tiền trước khi hoàn tất lịch,payments,could,yes,no,S08 cấu hình
+Hộp thư đa kênh một danh sách,omnichannel,should,yes,no,S03; bắt đầu với Zalo OA
+Liên kết hội thoại với hồ sơ khách,omnichannel,should,yes,no,S03
+Phân công/đổi người phụ trách + ghi chú nội bộ,omnichannel,should,yes,no,S03
+Mẫu trả lời nhanh gõ / theo chi nhánh,omnichannel,should,yes,no,S03
+Cảnh báo tin chờ lâu/chưa phân công,omnichannel,should,yes,no,S03
+Cửa sổ trả lời 24h + tin mẫu đã duyệt,omnichannel,could,yes,no,theo chính sách từng kênh
+Kết nối Messenger/Instagram/WhatsApp/LINE/Kakao/WeChat/Telegram/TikTok,omnichannel,could,yes,no,mỗi kênh một app cần duyệt
+Tự sinh lịch hỏi thăm sau điều trị theo nhóm dịch vụ,followup,must,yes,no,S22 F04
+Danh sách hỏi thăm Cần làm/Chờ trả lời/Sắp tới + dời khi chưa liên lạc,followup,should,yes,no,S22
+Phiếu khiếu nại có mã/loại/mức độ/timeline,complaints,should,yes,no,S23
+Nhắc khiếu nại ở lần hẹn tới + ghi khiếu nại từ chat,complaints,could,yes,no,S06 S03
+Tồn kho theo chi nhánh + kho tổng + ngưỡng THẤP,inventory,should,yes,no,S24
+Tự trừ vật tư theo định mức dịch vụ,inventory,should,yes,no,S24 F04
+Phiếu nhập/xuất/hủy/chuyển kho có xác nhận bên nhận,inventory,could,yes,no,S26
+Sổ kho và cảnh báo hạn dùng,inventory,could,yes,no,S27
+Báo cáo nhanh hôm qua/hôm nay/ngày mai,analytics,should,yes,no,S28
+Phân tích 6 mảng theo kỳ + so chi nhánh/nhân viên,analytics,could,yes,no,S29
+Phân tích AI tóm tắt + việc cần làm,analytics,could,yes,no,S30
+Chấm công khuôn mặt + vị trí; lịch ca; nghỉ phép,hrm,could,yes,no,S31 S32
+App iOS/Android cho nhân viên,mobile,should,yes,no,giai đoạn đầu: web responsive
+Thương hiệu/copy/mockup/dữ liệu mẫu của Qub-X,brand,skip,yes,skip,tài sản của Coauths (terms mục 10)
+Khảo sát giá đối thủ tự động từ web/mạng xã hội,ai,skip,yes,skip,thu thập dữ liệu bên thứ ba có rủi ro pháp lý
+Tạo ảnh/video/caption quảng cáo bằng AI,ai,skip,yes,skip,ngoài vòng lõi; quảng cáo dịch vụ y tế bị quản lý
+Chứng nhận hợp chuẩn TT 13/2025 của Qub-X,compliance,skip,yes,skip,phải tự thẩm định; không thừa hưởng được
+Tài khoản/quan hệ đối tác MISA/CA/kênh chat của Qub-X,integrations,skip,yes,skip,mỗi tích hợp phải tự đăng ký
+App khách hàng (mobile) của Qub-X,mobile,skip,partial,skip,không đủ thông tin công khai để mô tả

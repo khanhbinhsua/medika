@@ -1,0 +1,152 @@
+# Stack TỰ HOST đầy đủ cho VPS Việt Nam (không phụ thuộc AWS).
+#
+# Thay các dịch vụ AWS bằng bản self-host tương đương:
+#   AWS KMS  → HashiCorp Vault (Transit engine) — khoá gốc không rời Vault
+#   AWS S3   → MinIO (S3-compatible)
+#   AWS RDS  → PostgreSQL container (production: quản lý backup/replica riêng)
+#   ALB/CF   → Caddy hoặc nginx + Let's Encrypt (xem docs/09-deployment.md)
+#
+# Điểm mạnh so với docker-compose.prod.yml: chạy ĐÚNG NODE_ENV=production +
+# KEK_PROVIDER=vault — vượt qua guard bảo mật của env.ts (không phải hạ NODE_ENV
+# để lách như bản prod-test). Đây là đường code production thật.
+#
+# CẢNH BÁO: Vault chạy dev-mode (unseal sẵn, root token) chỉ để KIỂM CHỨNG stack.
+# Production thật phải init/unseal Vault đúng cách (auto-unseal), auth AppRole,
+# và MinIO/Postgres dùng credential mạnh từ secrets, ổ đĩa mã hoá (LUKS).
+
+name: crm-dk-vps
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: crm_app
+      POSTGRES_PASSWORD: vps_changeme_strong
+      POSTGRES_DB: crm_dk
+    volumes:
+      - vps_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U crm_app -d crm_dk']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  vault:
+    image: hashicorp/vault:latest
+    restart: unless-stopped
+    cap_add: [IPC_LOCK]
+    environment:
+      VAULT_DEV_ROOT_TOKEN_ID: vps-root-token
+      VAULT_DEV_LISTEN_ADDRESS: 0.0.0.0:8200
+    healthcheck:
+      test: ['CMD', 'wget', '-q', '-O', '-', 'http://127.0.0.1:8200/v1/sys/health']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Bật Transit engine + tạo khoá KEK, rồi thoát.
+  vault-init:
+    image: curlimages/curl:latest
+    depends_on:
+      vault:
+        condition: service_healthy
+    environment:
+      VAULT_ADDR: http://vault:8200
+      VAULT_TOKEN: vps-root-token
+    entrypoint:
+      - sh
+      - -c
+      - |
+        curl -sf -X POST -H "X-Vault-Token: $$VAULT_TOKEN" -d '{"type":"transit"}' $$VAULT_ADDR/v1/sys/mounts/transit || true
+        curl -sf -X POST -H "X-Vault-Token: $$VAULT_TOKEN" $$VAULT_ADDR/v1/transit/keys/crm-dk-kek
+        echo "Vault transit sẵn sàng"
+    restart: 'no'
+
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minio_changeme_strong
+    volumes:
+      - vps_minio:/data
+    healthcheck:
+      test: ['CMD', 'mc', 'ready', 'local']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Tạo bucket tài liệu, rồi thoát.
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint:
+      - sh
+      - -c
+      - |
+        mc alias set local http://minio:9000 minioadmin minio_changeme_strong
+        mc mb --ignore-existing local/crm-dk-documents
+        echo "MinIO bucket sẵn sàng"
+    restart: 'no'
+
+  migrate:
+    build:
+      context: ./backend
+      target: migrate
+    environment:
+      DATABASE_URL: postgresql://crm_app:vps_changeme_strong@db:5432/crm_dk
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: 'no'
+
+  backend:
+    build:
+      context: ./backend
+      target: runtime
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production # THẬT: guard env.ts cho phép vì KEK dùng vault, không phải local
+      PORT: '4100'
+      DATABASE_URL: postgresql://crm_app:vps_changeme_strong@db:5432/crm_dk
+      JWT_ACCESS_SECRET: tBnNT31tKNGTsAQaJv9owpKo_xiH7zTkVGt-iG_bGs8bpPSXEWeqPXzzyVnGf1YB
+      SEARCH_HMAC_KEY: irdsNp71mUoKkPAAYpU3Nw6bIN10P0HMg9XgK75+giQ=
+      # KEK qua Vault Transit (thay AWS KMS)
+      KEK_PROVIDER: vault
+      VAULT_ADDR: http://vault:8200
+      VAULT_TOKEN: vps-root-token
+      VAULT_TRANSIT_KEY: crm-dk-kek
+      # Tài liệu qua MinIO (thay AWS S3)
+      STORAGE_PROVIDER: s3
+      STORAGE_S3_BUCKET: crm-dk-documents
+      STORAGE_S3_ENDPOINT: http://minio:9000
+      STORAGE_S3_FORCE_PATH_STYLE: 'true'
+      STORAGE_S3_ACCESS_KEY_ID: minioadmin
+      STORAGE_S3_SECRET_ACCESS_KEY: minio_changeme_strong
+      CORS_ORIGINS: http://localhost:8090
+    depends_on:
+      db:
+        condition: service_healthy
+      vault-init:
+        condition: service_completed_successfully
+      minio-init:
+        condition: service_completed_successfully
+      migrate:
+        condition: service_completed_successfully
+
+  frontend:
+    build:
+      context: ./frontend
+    restart: unless-stopped
+    ports:
+      - '8090:8080'
+    depends_on:
+      - backend
+
+volumes:
+  vps_pgdata:
+  vps_minio:
