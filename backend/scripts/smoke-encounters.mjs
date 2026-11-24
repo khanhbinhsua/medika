@@ -53,6 +53,19 @@ try {
   check('ghi nội dung → 200 + giải mã đúng', upd.status === 200 && upd.body?.reason === 'Đau ngực trái 3 ngày' && upd.body?.vitals?.bp === '140/90', JSON.stringify(upd.body?.reason));
   check('chẩn đoán ICD chính + kèm', upd.body?.dxPrimaryIcd10 === 'I20.9' && upd.body?.dxSecondaryIcd10?.includes('E11.9'));
 
+  console.log('\n--- 2b. Kê đơn thuốc nối bệnh án (S15) ---');
+  const rx1 = await req('POST', '/prescriptions', { token: doctor.token, body: {
+    patientId: p.id, encounterId: eid, medication: 'Aspirin', dosage: '81mg', frequency: '1 lần/ngày', durationDays: 30,
+  } });
+  check('kê đơn (gắn encounterId) → 201', rx1.status === 201, `status=${rx1.status}`);
+  const rxOther = await req('POST', '/prescriptions', { token: doctor.token, body: {
+    patientId: p.id, medication: 'Paracetamol', dosage: '500mg', frequency: 'khi sốt',
+  } });
+  check('kê đơn không gắn encounter → 201', rxOther.status === 201);
+  const byEnc = await req('GET', `/prescriptions?patientId=${p.id}&encounterId=${eid}`, { token: doctor.token });
+  check('lọc đơn theo encounter → chỉ 1 đơn của lần khám', byEnc.body?.length === 1 && byEnc.body?.[0]?.medication === 'Aspirin', JSON.stringify(byEnc.body?.map((x) => x.medication)));
+  check('DB: encounter_id khớp', sql(`SELECT encounter_id FROM prescriptions WHERE id='${byEnc.body?.[0]?.id}'`) === eid);
+
   console.log('\n--- 3. Mã hoá tại chỗ ---');
   const raw = sql(`SELECT encode(reason_enc,'hex') FROM encounters WHERE id='${eid}'`);
   check('lý do khám lưu mã hoá (không plaintext)', raw.length > 0 && !/Đau ngực|Dau nguc/i.test(Buffer.from(raw, 'hex').toString('utf8')));

@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 export const createPrescriptionSchema = z.object({
   patientId: z.string().uuid('Mã bệnh nhân không hợp lệ'),
+  encounterId: z.string().uuid().optional(),
   medication: z.string().trim().min(1, 'Vui lòng nhập tên thuốc').max(200),
   rxnormCode: z.string().trim().max(50).optional(),
   dosage: z.string().trim().min(1, 'Vui lòng nhập liều dùng').max(100),
@@ -13,6 +14,7 @@ export const createPrescriptionSchema = z.object({
 
 export const listPrescriptionsSchema = z.object({
   patientId: z.string().uuid('Mã bệnh nhân không hợp lệ'),
+  encounterId: z.string().uuid().optional(),
   status: z.enum(['active', 'completed', 'cancelled', 'expired']).optional(),
 });
 

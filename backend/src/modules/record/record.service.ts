@@ -49,6 +49,7 @@ export async function createPrescription(
         .insertInto('prescriptions')
         .values({
           patient_id: input.patientId,
+          encounter_id: input.encounterId ?? null,
           prescriber_id: actor.id,
           medication: input.medication,
           rxnorm_code: input.rxnormCode ?? null,
@@ -101,6 +102,7 @@ export async function listPrescriptions(
     .where('prescriptions.patient_id', '=', query.patientId);
 
   if (query.status) base = base.where('prescriptions.status', '=', query.status);
+  if (query.encounterId) base = base.where('prescriptions.encounter_id', '=', query.encounterId);
 
   const rows = await base
     .selectAll('prescriptions')

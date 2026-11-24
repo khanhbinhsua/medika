@@ -8,10 +8,12 @@ import { DialogShell } from './DialogShell';
 
 export function NewPrescriptionDialog({
   patientId,
+  encounterId,
   onClose,
   onCreated,
 }: {
   patientId: string;
+  encounterId?: string;
   onClose: () => void;
   onCreated: () => void;
 }) {
@@ -33,6 +35,7 @@ export function NewPrescriptionDialog({
     mutationFn: () =>
       createPrescription({
         patientId,
+        ...(encounterId ? { encounterId } : {}),
         medication: medication.trim(),
         dosage: dosage.trim(),
         frequency: frequency.trim(),

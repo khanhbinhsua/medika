@@ -97,8 +97,8 @@ export const PRESCRIPTION_STATUS_LABELS: Record<Prescription['status'], string> 
   expired: 'Hết hạn',
 };
 
-export async function fetchPrescriptions(patientId: string) {
-  const { data } = await apiClient.get<Prescription[]>('/prescriptions', { params: { patientId } });
+export async function fetchPrescriptions(patientId: string, encounterId?: string) {
+  const { data } = await apiClient.get<Prescription[]>('/prescriptions', { params: { patientId, ...(encounterId ? { encounterId } : {}) } });
   return data;
 }
 

@@ -6,11 +6,13 @@ import {
   ENCOUNTER_STATUS_VI, type Encounter, type Vitals, type EncounterPatch,
 } from '../lib/encounters';
 import { fetchConditions } from '../lib/conditions';
+import { fetchPrescriptions, PRESCRIPTION_STATUS_LABELS } from '../lib/clinical';
 import { getErrorMessage } from '../lib/api-client';
 import { useAuthStore } from '../stores/auth.store';
-import { Button, Input, Alert, Skeleton } from './ui';
+import { Button, Input, Alert, Badge, Skeleton } from './ui';
 import { DialogShell } from './DialogShell';
 import { Icd10Combobox } from './Icd10Combobox';
+import { NewPrescriptionDialog } from './NewPrescriptionDialog';
 
 type Form = Pick<Encounter, 'reason' | 'history' | 'pastPersonal' | 'pastFamily' | 'examGeneral' | 'examOrgans' | 'labsSummary' | 'treatment' | 'dxPrimaryIcd10' | 'dxSecondaryIcd10' | 'treatmentFrom' | 'treatmentTo'> & { vitals: Vitals };
 
@@ -36,8 +38,11 @@ export function ExamDialog({ encounterId, onClose, onChanged }: { encounterId: s
 
   useEffect(() => { if (enc.data) setF(fromEncounter(enc.data)); }, [enc.data]);
 
+  const canRx = useAuthStore((s) => s.can)('prescription:write');
   const patient = enc.data?.patientId;
   const conds = useQuery({ queryKey: ['conditions', patient], queryFn: () => fetchConditions(patient!), enabled: !!patient });
+  const rx = useQuery({ queryKey: ['enc-rx', encounterId], queryFn: () => fetchPrescriptions(patient!, encounterId), enabled: !!patient });
+  const [rxOpen, setRxOpen] = useState(false);
 
   const locked = enc.data?.locked ?? false;
   const editable = canWrite && (!locked || amendMode);
@@ -126,6 +131,37 @@ export function ExamDialog({ encounterId, onClose, onChanged }: { encounterId: s
             </div>
           </Section>
 
+          <Section n="VII" title="Đơn thuốc">
+            <div className="space-y-1.5">
+              {rx.isLoading ? (
+                <Skeleton className="h-10" />
+              ) : (rx.data ?? []).length === 0 ? (
+                <p className="text-sm text-ink-soft">Chưa kê đơn thuốc trong lần khám này.</p>
+              ) : (
+                <ul className="divide-y divide-rule rounded-md border border-rule">
+                  {rx.data!.map((p) => (
+                    <li key={p.id} className="flex items-start justify-between gap-3 px-3 py-2">
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-medium text-ink">{p.medication}</div>
+                        <div className="text-xs text-ink-soft">
+                          {p.dosage} · {p.frequency}
+                          {p.durationDays ? ` · ${p.durationDays} ngày` : ''}
+                          {p.quantity ? ` · SL ${p.quantity}` : ''}
+                        </div>
+                      </div>
+                      <Badge tone={p.status === 'active' ? 'accent' : p.status === 'cancelled' ? 'danger' : 'neutral'}>
+                        {PRESCRIPTION_STATUS_LABELS[p.status]}
+                      </Badge>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {canRx && (
+                <Button variant="ghost" onClick={() => setRxOpen(true)}>+ Kê đơn thuốc</Button>
+              )}
+            </div>
+          </Section>
+
           {amendMode && (
             <L label="Lý do sửa bổ sung *"><Input value={changeReason} onChange={(e) => setChangeReason(e.target.value)} placeholder="Nêu rõ lý do" /></L>
           )}
@@ -144,6 +180,14 @@ export function ExamDialog({ encounterId, onClose, onChanged }: { encounterId: s
             )}
           </div>
         </div>
+      )}
+      {rxOpen && patient && (
+        <NewPrescriptionDialog
+          patientId={patient}
+          encounterId={encounterId}
+          onClose={() => setRxOpen(false)}
+          onCreated={() => { setRxOpen(false); void rx.refetch(); }}
+        />
       )}
     </DialogShell>
   );
