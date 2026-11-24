@@ -21,7 +21,7 @@ export function AuthShell({
   return (
     <div className="flex min-h-full items-center justify-center p-4 sm:p-8">
       <div
-        className={`plate rise grid w-full overflow-hidden lg:grid-cols-[minmax(0,20rem)_minmax(0,1fr)] ${
+        className={`plate float-3 rise grid w-full overflow-hidden rounded-lg lg:grid-cols-[minmax(0,20rem)_minmax(0,1fr)] ${
           wide ? 'max-w-4xl' : 'max-w-3xl'
         }`}
       >
@@ -45,7 +45,13 @@ export function AuthShell({
 
 function IdentityPanel() {
   return (
-    <aside className="relative border-b border-rule bg-surface-sunk p-6 sm:p-8 lg:border-b-0 lg:border-r">
+    <aside className="relative overflow-hidden border-b border-rule bg-surface-sunk p-6 sm:p-8 lg:border-b-0 lg:border-r">
+      {/* Khí quyển: quầng teal rất nhạt toả từ góc trên, tạo chiều sâu cao cấp */}
+      <div
+        className="pointer-events-none absolute -left-16 -top-16 h-56 w-56 rounded-full opacity-70"
+        style={{ background: 'radial-gradient(circle, rgb(var(--accent) / 0.14), transparent 70%)' }}
+        aria-hidden="true"
+      />
       {/* Vạch nhấn dọc, gợi mép thước đo của thiết bị */}
       <div className="absolute inset-y-0 left-0 w-[3px] bg-accent lg:w-1" aria-hidden="true" />
 
@@ -58,9 +64,9 @@ function IdentityPanel() {
       </div>
 
       <dl className="mt-7 hidden space-y-3.5 lg:block">
-        <Spec term="Phiên bản" value="0.1.0 · Phase 1" />
-        <Spec term="Mã hoá" value="AES-256-GCM" />
-        <Spec term="Xác thực" value="Mật khẩu + TOTP" />
+        <Spec term="Tuân thủ" value="TT 13 · TT 26 · BVDLCN 2025" />
+        <Spec term="Dữ liệu" value="Lưu trú tại Việt Nam" />
+        <Spec term="Mã hoá" value="AES-256-GCM · MFA" />
         <Spec term="Tự đăng xuất" value="30 phút không hoạt động" />
       </dl>
 

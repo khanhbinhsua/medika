@@ -48,6 +48,12 @@
   --ok-wash: 234 246 240;
 
   --grid-line: 0 0 0 / 0.035;
+
+  /* Elevation — mềm, hơi lạnh, tạo chiều sâu cao cấp mà vẫn sạch (y tế). */
+  --shadow-1: 0 1px 2px rgb(15 23 32 / 0.05), 0 1px 3px rgb(15 23 32 / 0.04);
+  --shadow-2: 0 2px 4px rgb(15 23 32 / 0.05), 0 6px 16px rgb(15 23 32 / 0.08);
+  --shadow-3: 0 8px 24px rgb(15 23 32 / 0.10), 0 24px 48px rgb(15 23 32 / 0.12);
+  --ring: 13 125 138;
 }
 
 .dark {
@@ -74,6 +80,11 @@
   --ok-wash: 16 42 31;
 
   --grid-line: 255 255 255 / 0.035;
+
+  --shadow-1: 0 1px 2px rgb(0 0 0 / 0.30), 0 1px 3px rgb(0 0 0 / 0.24);
+  --shadow-2: 0 2px 6px rgb(0 0 0 / 0.36), 0 8px 20px rgb(0 0 0 / 0.44);
+  --shadow-3: 0 10px 30px rgb(0 0 0 / 0.50), 0 28px 56px rgb(0 0 0 / 0.55);
+  --ring: 45 189 199;
 }
 
 @layer base {
@@ -84,12 +95,14 @@
   body {
     @apply bg-paper text-ink;
     font-family: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
-    font-feature-settings: 'cv05' 1;
-    /* Lưới nền mảnh, gợi giấy kẻ ô của biểu mẫu xét nghiệm */
+    font-feature-settings: 'cv05' 1, 'ss01' 1;
+    /* Quầng sáng teal rất nhạt ở trên (chiều sâu) + lưới mảnh gợi giấy xét nghiệm */
     background-image:
+      radial-gradient(120% 80% at 50% -20%, rgb(var(--accent) / 0.06), transparent 60%),
       linear-gradient(to right, rgb(var(--grid-line)) 1px, transparent 1px),
       linear-gradient(to bottom, rgb(var(--grid-line)) 1px, transparent 1px);
-    background-size: 32px 32px;
+    background-size: 100% 100%, 32px 32px, 32px 32px;
+    background-attachment: fixed, scroll, scroll;
   }
 
   html,
@@ -120,14 +133,56 @@
     @apply text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-faint;
   }
 
-  /* Tấm dữ liệu: viền kẻ tóc, không đổ bóng — như tem dán mẫu bệnh phẩm */
+  /* Tấm dữ liệu: viền kẻ tóc + đổ bóng rất nhẹ — tem mẫu bệnh phẩm nhưng có chiều sâu */
   .plate {
-    @apply border border-rule bg-surface;
+    @apply rounded-md border border-rule bg-surface;
+    box-shadow: var(--shadow-1);
   }
 
   .rule-t {
     @apply border-t border-rule;
   }
+
+  /* Elevation tiện dụng */
+  .float-1 { box-shadow: var(--shadow-1); }
+  .float-2 { box-shadow: var(--shadow-2); }
+  .float-3 { box-shadow: var(--shadow-3); }
+
+  /* Nút chính: dốc màu teal + ánh sáng viền trong + bóng, nhấn tactile */
+  .btn-primary {
+    background-image: linear-gradient(180deg, rgb(var(--accent)), rgb(var(--accent-deep)));
+    box-shadow: 0 1px 2px rgb(var(--accent-deep) / 0.35), inset 0 1px 0 rgb(255 255 255 / 0.18);
+    color: #fff;
+  }
+  .btn-primary:hover:not(:disabled) { filter: brightness(1.06); }
+  .btn-primary:active:not(:disabled) { transform: translateY(1px); box-shadow: 0 1px 1px rgb(var(--accent-deep) / 0.35); }
+
+  /* Ô nhập khi focus: viền accent + quầng mềm */
+  .input-focus:focus { outline: none; }
+  .input-focus:focus-visible {
+    outline: none;
+    border-color: rgb(var(--accent));
+    box-shadow: 0 0 0 3px rgb(var(--ring) / 0.18);
+  }
+
+  /* Skeleton lấp lánh thay vì chỉ nhấp nháy */
+  .shimmer {
+    position: relative;
+    overflow: hidden;
+    @apply bg-surface-sunk;
+  }
+  .shimmer::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(90deg, transparent, rgb(var(--ink) / 0.05), transparent);
+    animation: shimmer 1.4s ease-in-out infinite;
+  }
+}
+
+@keyframes shimmer {
+  to { transform: translateX(100%); }
 }
 
 /* Tôn trọng người dùng tắt hiệu ứng chuyển động */

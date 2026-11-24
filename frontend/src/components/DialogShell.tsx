@@ -25,10 +25,10 @@ export function DialogShell({
 
   return (
     <div
-      className="fixed inset-0 z-40 flex items-start justify-center overflow-y-auto bg-ink/25 p-4 backdrop-blur-[2px] sm:items-center"
+      className="fixed inset-0 z-40 flex items-start justify-center overflow-y-auto bg-ink/40 p-4 backdrop-blur-sm sm:items-center"
       onMouseDown={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div role="dialog" aria-modal="true" className={`plate rise w-full ${maxWidth}`}>
+      <div role="dialog" aria-modal="true" className={`plate float-3 rise w-full rounded-lg ${maxWidth}`}>
         <div className="flex items-center justify-between border-b border-rule px-5 py-3.5">
           <div>
             <div className="tabular field-label text-accent">{eyebrow}</div>

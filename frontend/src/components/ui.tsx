@@ -14,14 +14,14 @@ type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
 
 export function Button({ variant = 'primary', loading, className, children, disabled, ...rest }: ButtonProps) {
   const base =
-    'inline-flex items-center justify-center gap-2 rounded px-4 h-10 text-sm font-medium ' +
-    'transition-[background-color,border-color,color] duration-150 ' +
-    'disabled:cursor-not-allowed disabled:opacity-45';
+    'inline-flex items-center justify-center gap-2 rounded-md px-4 h-10 text-sm font-medium ' +
+    'transition-[background-color,border-color,color,box-shadow,transform,filter] duration-150 ' +
+    'disabled:cursor-not-allowed disabled:opacity-45 disabled:shadow-none';
 
   const variants = {
-    primary: 'bg-accent text-white hover:bg-accent-deep border border-transparent',
-    ghost: 'border border-rule-strong text-ink hover:bg-surface-sunk',
-    danger: 'border border-danger/40 text-danger hover:bg-danger-wash',
+    primary: 'btn-primary border border-transparent',
+    ghost: 'border border-rule-strong bg-surface text-ink float-1 hover:bg-surface-sunk hover:border-ink-faint active:translate-y-px',
+    danger: 'border border-danger/40 text-danger hover:bg-danger-wash active:translate-y-px',
   };
 
   return (
@@ -53,8 +53,8 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
     <input
       ref={ref}
       className={cx(
-        'h-10 w-full rounded border bg-surface px-3 text-sm text-ink placeholder:text-ink-faint',
-        'transition-colors duration-150',
+        'input-focus h-10 w-full rounded-md border bg-surface px-3 text-sm text-ink placeholder:text-ink-faint',
+        'transition-[border-color,box-shadow] duration-150',
         invalid ? 'border-danger' : 'border-rule-strong hover:border-ink-faint',
         className,
       )}
@@ -91,12 +91,12 @@ export function Field({
 
 export function Alert({ tone = 'danger', children }: { tone?: 'danger' | 'warn' | 'ok'; children: ReactNode }) {
   const tones = {
-    danger: 'border-danger/35 bg-danger-wash text-danger',
-    warn: 'border-warn/35 bg-warn-wash text-warn',
-    ok: 'border-ok/35 bg-ok-wash text-ok',
+    danger: 'border-danger/35 bg-danger-wash text-danger border-l-danger',
+    warn: 'border-warn/35 bg-warn-wash text-warn border-l-warn',
+    ok: 'border-ok/35 bg-ok-wash text-ok border-l-ok',
   };
   return (
-    <div role="alert" className={cx('rounded border px-3 py-2.5 text-sm', tones[tone])}>
+    <div role="alert" className={cx('rounded-md border border-l-[3px] px-3 py-2.5 text-sm', tones[tone])}>
       {children}
     </div>
   );
@@ -138,5 +138,5 @@ export function DataPlate({ label, value, mono = true }: { label: string; value:
 // ── Skeleton ──────────────────────────────────────────────────────────
 
 export function Skeleton({ className }: { className?: string }) {
-  return <div className={cx('animate-pulse rounded bg-surface-sunk', className)} />;
+  return <div className={cx('shimmer rounded-md', className)} />;
 }

@@ -42,7 +42,7 @@ export function AppLayout() {
     <div className="flex min-h-full flex-col">
       <IdleGuard />
 
-      <header className="sticky top-0 z-20 border-b border-rule bg-surface/95 backdrop-blur">
+      <header className="float-1 sticky top-0 z-20 border-b border-rule bg-surface/80 backdrop-blur-md">
         <div className="flex h-14 items-center gap-4 px-4 sm:px-6">
           <div className="flex items-center gap-2.5">
             <svg viewBox="0 0 24 24" className="h-6 w-6" aria-hidden="true">
@@ -101,7 +101,7 @@ export function AppLayout() {
         </div>
       </header>
 
-      <main className="flex-1 px-4 py-6 sm:px-6 sm:py-8">
+      <main className="rise flex-1 px-4 py-6 sm:px-6 sm:py-8">
         <Outlet />
       </main>
 

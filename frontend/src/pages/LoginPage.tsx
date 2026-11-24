@@ -40,7 +40,7 @@ export function LoginPage() {
     <AuthShell
       step="Bước 1 / 2"
       title="Đăng nhập hệ thống"
-      caption="Truy cập được ghi nhật ký theo quy định HIPAA."
+      caption="Mọi truy cập đều được ghi nhật ký bất biến (Luật BVDLCN 2025)."
     >
       <form onSubmit={onSubmit} className="space-y-4" noValidate>
         {error && <Alert>{error}</Alert>}
