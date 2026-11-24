@@ -30,3 +30,6 @@ Thumbs.db
 patient-export*
 phi-*
 backups/
+
+# TS incremental build cache
+*.tsbuildinfo

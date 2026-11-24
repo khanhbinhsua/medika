@@ -117,55 +117,13 @@ check('lý do huỷ được mã hoá và giải mã đúng', cancel.body?.cance
 const cancelTwice = await req('POST', `/appointments/${adjacent.body.id}/cancel`, { token: reception.token, body: { reason: 'lần hai' } });
 check('huỷ lại lần hai bị chặn → 409', cancelTwice.status === 409, `status=${cancelTwice.status}`);
 
-console.log('\n--- 5. Hồ sơ y tế + phiên bản ---');
-const rec = await req('POST', '/records', {
-  token: doctor.token,
-  body: {
-    patientId: pid, appointmentId: apptId, recordType: 'consultation',
-    title: 'Khám tim mạch lần đầu',
-    content: 'Bệnh nhân đau ngực trái 3 ngày. Huyết áp 140/90. Chỉ định điện tim.',
-    icd10Code: 'I20.9',
-  },
-});
-check('bác sĩ tạo được hồ sơ → 201', rec.status === 201, JSON.stringify(rec.body));
-check('nội dung giải mã đúng', /Huyết áp 140\/90/.test(rec.body?.content ?? ''), rec.body?.content);
-check('phiên bản khởi tạo = 1', rec.body?.version === 1, String(rec.body?.version));
-const recId = rec.body?.id;
+// (Bệnh án SOAP + ký hồ sơ đã gỡ khi rút gọn lâm sàng 24/08 — xem conditions/encounter sau.)
 
-const badIcd = await req('POST', '/records', {
-  token: doctor.token,
-  body: { patientId: pid, title: 'x', content: 'y', icd10Code: 'SAI-MA' },
-});
-check('mã ICD-10 sai định dạng bị chặn → 400', badIcd.status === 400, `status=${badIcd.status}`);
-
-const noReason = await req('PATCH', `/records/${recId}`, { token: doctor.token, body: { content: 'sửa lén' } });
-check('sửa hồ sơ mà không nêu lý do → 400', noReason.status === 400, `status=${noReason.status}`);
-
-const upd = await req('PATCH', `/records/${recId}`, {
-  token: doctor.token,
-  body: { content: 'Bệnh nhân đau ngực trái 3 ngày. Điện tim: ST chênh nhẹ V4-V6.', changeReason: 'Bổ sung kết quả điện tim' },
-});
-check('sửa kèm lý do → thành công', upd.status === 200, JSON.stringify(upd.body));
-check('phiên bản tăng lên 2', upd.body?.version === 2, String(upd.body?.version));
-
-const vers = await req('GET', `/records/${recId}/versions`, { token: doctor.token });
-check('lịch sử giữ đúng 1 bản cũ', vers.body?.length === 1, `got ${vers.body?.length}`);
-check('bản cũ giữ nguyên nội dung gốc', /Chỉ định điện tim/.test(vers.body?.[0]?.content ?? ''), vers.body?.[0]?.content);
-check('bản cũ lưu lý do sửa', vers.body?.[0]?.changeReason === 'Bổ sung kết quả điện tim', vers.body?.[0]?.changeReason);
-
-console.log('\n--- 6. Ký hồ sơ ---');
-const signOther = await req('POST', `/records/${recId}/sign`, { token: admin.token });
-check('người khác không ký thay được → 403', signOther.status === 403, `status=${signOther.status}`);
-const sign = await req('POST', `/records/${recId}/sign`, { token: doctor.token });
-check('người lập ký được → 204', sign.status === 204, `status=${sign.status}`);
-const editSigned = await req('PATCH', `/records/${recId}`, { token: doctor.token, body: { content: 'sửa sau ký', changeReason: 'thử' } });
-check('hồ sơ đã ký không sửa được → 409', editSigned.status === 409, `status=${editSigned.status}`);
-
-console.log('\n--- 7. Đơn thuốc + RBAC ---');
+console.log('\n--- 5. Đơn thuốc + RBAC ---');
 const rx = await req('POST', '/prescriptions', {
   token: doctor.token,
   body: {
-    patientId: pid, recordId: recId, medication: 'Aspirin', dosage: '81mg',
+    patientId: pid, medication: 'Aspirin', dosage: '81mg',
     frequency: '1 lần/ngày sau ăn sáng', durationDays: 30, instructions: 'Uống với nhiều nước, theo dõi dấu hiệu xuất huyết',
   },
 });
@@ -182,22 +140,7 @@ check('y tá KHÔNG được kê đơn → 403', nurseRx.status === 403, `status
 const nurseRead = await req('GET', `/prescriptions?patientId=${pid}`, { token: nurse.token });
 check('y tá vẫn xem được đơn thuốc', nurseRead.status === 200 && nurseRead.body?.length === 1, `status=${nurseRead.status}`);
 
-console.log('\n--- 8. RBAC lễ tân với hồ sơ bệnh án ---');
-const recReadByReception = await req('GET', `/records?patientId=${pid}`, { token: reception.token });
-check('lễ tân KHÔNG xem được hồ sơ bệnh án → 403', recReadByReception.status === 403, `status=${recReadByReception.status}`);
-
-console.log('\n--- 9. Chống trộn lẫn bệnh án ---');
-const other = await req('POST', '/patients', {
-  token: admin.token,
-  body: { firstName: 'Lê Văn', lastName: 'Bình', dob: '1975-01-01' },
-});
-const mismatch = await req('POST', '/records', {
-  token: doctor.token,
-  body: { patientId: other.body.id, appointmentId: apptId, title: 'Sai bệnh nhân', content: 'x' },
-});
-check('gắn hồ sơ vào lịch hẹn của bệnh nhân khác bị chặn → 409', mismatch.status === 409, `status=${mismatch.status}`);
-
-console.log('\n--- 10. Lọc danh sách lịch hẹn ---');
+console.log('\n--- 6. Lọc danh sách lịch hẹn ---');
 const byPatient = await req('GET', `/appointments?patientId=${pid}`, { token: doctor.token });
 check('lọc theo bệnh nhân trả đúng 2 lịch', byPatient.body?.data?.length === 2, `got ${byPatient.body?.data?.length}`);
 const byStatus = await req('GET', `/appointments?patientId=${pid}&status=cancelled`, { token: doctor.token });
