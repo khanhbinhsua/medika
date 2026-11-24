@@ -14,12 +14,13 @@ import { useAuthStore } from '../stores/auth.store';
 import { Button, Alert, Badge, Skeleton, cx } from './ui';
 import { NewPrescriptionDialog } from './NewPrescriptionDialog';
 import { DocumentsTab } from './DocumentsTab';
+import { PhotosTab } from './PhotosTab';
 import { SpendingTab } from './SpendingTab';
 import { ConditionsTab } from './ConditionsTab';
 import { BillingTab } from './BillingTab';
 import { BenhAnTab } from './BenhAnTab';
 
-type Tab = 'encounter' | 'conditions' | 'prescriptions' | 'appointments' | 'documents' | 'spending' | 'billing';
+type Tab = 'encounter' | 'conditions' | 'prescriptions' | 'photos' | 'appointments' | 'documents' | 'spending' | 'billing';
 
 export function PatientClinicalTabs({ patientId }: { patientId: string }) {
   const can = useAuthStore((s) => s.can);
@@ -28,6 +29,7 @@ export function PatientClinicalTabs({ patientId }: { patientId: string }) {
     { id: 'encounter', label: 'Bệnh án', visible: can('encounter:read') },
     { id: 'conditions', label: 'Bệnh lý & Dị ứng', visible: can('condition:read') },
     { id: 'prescriptions', label: 'Đơn thuốc', visible: can('record:read') },
+    { id: 'photos', label: 'Ảnh trước/sau', visible: can('photo:read') },
     { id: 'documents', label: 'Tài liệu', visible: can('document:read') },
     { id: 'appointments', label: 'Lịch hẹn', visible: can('appointment:read') },
     { id: 'spending', label: 'Chi tiêu', visible: can('spending:read') },
@@ -68,6 +70,7 @@ export function PatientClinicalTabs({ patientId }: { patientId: string }) {
         {tab === 'encounter' && <BenhAnTab patientId={patientId} />}
         {tab === 'conditions' && <ConditionsTab patientId={patientId} />}
         {tab === 'prescriptions' && <PrescriptionsTab patientId={patientId} />}
+        {tab === 'photos' && <PhotosTab patientId={patientId} />}
         {tab === 'documents' && <DocumentsTab patientId={patientId} />}
         {tab === 'appointments' && <AppointmentsTab patientId={patientId} />}
         {tab === 'spending' && <SpendingTab patientId={patientId} />}

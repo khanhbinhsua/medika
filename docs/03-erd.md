@@ -51,6 +51,7 @@ erDiagram
     PATIENTS ||--o{ APPOINTMENTS : "đặt"
     PATIENTS ||--o{ PRESCRIPTIONS : "được kê"
     PATIENTS ||--o{ DOCUMENTS : "đính kèm"
+    PATIENTS ||--o{ CLINICAL_PHOTOS : "ảnh trước/sau"
     PATIENTS ||--o{ PHI_ACCESS_LOGS : "bị truy cập"
     PATIENTS ||--o| PATIENT_PORTAL_ACCOUNTS : "có"
     USERS ||--o{ APPOINTMENTS : "là bác sĩ"
@@ -88,6 +89,7 @@ erDiagram
         bytea instructions_enc "🔒"; text status; timestamptz prescribed_at; timestamptz expires_at
     }
     DOCUMENTS { uuid id PK; uuid patient_id FK; bytea file_name_enc "🔒"; text mime_type; bigint size_bytes; text storage_key; bytea file_dek_enc "🔒"; text sha256; uuid uploaded_by FK; timestamptz deleted_at }
+    CLINICAL_PHOTOS { uuid id PK; uuid patient_id FK; uuid encounter_id FK; text category; text body_area; bytea caption_enc "🔒"; date taken_at; text mime_type; bigint size_bytes; text storage_key; bytea file_dek_enc "🔒"; text sha256; uuid uploaded_by FK; timestamptz deleted_at }
     PHI_ACCESS_LOGS { uuid id PK; uuid request_id; uuid patient_id FK; uuid accessed_by FK; text access_type; text_array fields_accessed; text purpose; inet ip_address }
     PATIENT_PORTAL_ACCOUNTS { uuid id PK; uuid patient_id FK; text login_email_hash; text password_hash; text status; bool must_change_password }
     PATIENT_PORTAL_SESSIONS { uuid id PK; uuid portal_account_id FK; text refresh_token_hash; timestamptz expires_at; timestamptz revoked_at }

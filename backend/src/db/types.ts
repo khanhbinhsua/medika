@@ -281,6 +281,24 @@ export interface DocumentsTable {
   deleted_at: Timestamp | null;
 }
 
+export interface ClinicalPhotosTable {
+  id: Generated<string>;
+  patient_id: string;
+  encounter_id: string | null;
+  category: 'before' | 'after' | 'progress';
+  body_area: string | null;
+  caption_enc: Buffer | null;
+  taken_at: ColumnType<Date, Date | string | undefined, Date | string>;
+  mime_type: string;
+  size_bytes: string;
+  storage_key: string;
+  file_dek_enc: Buffer;
+  sha256: string;
+  uploaded_by: string;
+  created_at: Timestamp;
+  deleted_at: Timestamp | null;
+}
+
 export interface AuditLogsTable {
   id: Generated<string>;
   request_id: string | null;
@@ -776,4 +794,5 @@ export interface Database {
   customer_packages: CustomerPackagesTable;
   encounters: EncountersTable;
   encounter_versions: EncounterVersionsTable;
+  clinical_photos: ClinicalPhotosTable;
 }
