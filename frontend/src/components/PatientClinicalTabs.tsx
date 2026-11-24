@@ -17,13 +17,15 @@ import { DocumentsTab } from './DocumentsTab';
 import { SpendingTab } from './SpendingTab';
 import { ConditionsTab } from './ConditionsTab';
 import { BillingTab } from './BillingTab';
+import { BenhAnTab } from './BenhAnTab';
 
-type Tab = 'conditions' | 'prescriptions' | 'appointments' | 'documents' | 'spending' | 'billing';
+type Tab = 'encounter' | 'conditions' | 'prescriptions' | 'appointments' | 'documents' | 'spending' | 'billing';
 
 export function PatientClinicalTabs({ patientId }: { patientId: string }) {
   const can = useAuthStore((s) => s.can);
 
   const tabs: Array<{ id: Tab; label: string; visible: boolean }> = [
+    { id: 'encounter', label: 'Bệnh án', visible: can('encounter:read') },
     { id: 'conditions', label: 'Bệnh lý & Dị ứng', visible: can('condition:read') },
     { id: 'prescriptions', label: 'Đơn thuốc', visible: can('record:read') },
     { id: 'documents', label: 'Tài liệu', visible: can('document:read') },
@@ -63,6 +65,7 @@ export function PatientClinicalTabs({ patientId }: { patientId: string }) {
       </div>
 
       <div className="p-4">
+        {tab === 'encounter' && <BenhAnTab patientId={patientId} />}
         {tab === 'conditions' && <ConditionsTab patientId={patientId} />}
         {tab === 'prescriptions' && <PrescriptionsTab patientId={patientId} />}
         {tab === 'documents' && <DocumentsTab patientId={patientId} />}

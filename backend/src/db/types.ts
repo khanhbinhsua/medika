@@ -250,6 +250,7 @@ export interface AppointmentRemindersTable {
 export interface PrescriptionsTable {
   id: Generated<string>;
   patient_id: string;
+  encounter_id: string | null;
   prescriber_id: string;
   medication: string;
   rxnorm_code: string | null;
@@ -684,6 +685,46 @@ export interface CustomerPackagesTable {
   created_at: Timestamp;
 }
 
+export type EncounterStatus = 'draft' | 'signed' | 'amended';
+
+export interface EncountersTable {
+  id: Generated<string>;
+  branch_id: string | null;
+  patient_id: string;
+  appointment_id: string | null;
+  doctor_id: string;
+  reason_enc: Buffer | null;
+  history_enc: Buffer | null;
+  past_personal_enc: Buffer | null;
+  past_family_enc: Buffer | null;
+  vitals: ColumnType<Record<string, unknown>, string | undefined, string>;
+  exam_general_enc: Buffer | null;
+  exam_organs_enc: Buffer | null;
+  labs_summary_enc: Buffer | null;
+  treatment_enc: Buffer | null;
+  dx_note_enc: Buffer | null;
+  dx_primary_icd10: string | null;
+  dx_secondary_icd10: Generated<string[]>;
+  treatment_from: Date | null;
+  treatment_to: Date | null;
+  status: Generated<EncounterStatus>;
+  signed_at: Timestamp | null;
+  signed_by: string | null;
+  locked: Generated<boolean>;
+  created_at: Timestamp;
+  updated_at: Timestamp;
+}
+
+export interface EncounterVersionsTable {
+  id: Generated<string>;
+  encounter_id: string;
+  version: number;
+  snapshot_enc: Buffer;
+  changed_by: string;
+  change_reason: string;
+  created_at: Timestamp;
+}
+
 export interface Database {
   roles: RolesTable;
   permissions: PermissionsTable;
@@ -733,4 +774,6 @@ export interface Database {
   order_lines: OrderLinesTable;
   payments: PaymentsTable;
   customer_packages: CustomerPackagesTable;
+  encounters: EncountersTable;
+  encounter_versions: EncounterVersionsTable;
 }

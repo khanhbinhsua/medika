@@ -64,7 +64,7 @@ check('response có Cache-Control no-store', true);
 // Baseline CRM (đã rút gọn lâm sàng): admin có quyền các module CRM — bệnh nhân,
 // lịch hẹn, đơn thuốc, bệnh lý/dị ứng, tài liệu, chi tiêu, phác đồ, marketing,
 // khảo sát, thông báo, cổng BN, báo cáo, người dùng, kiểm toán.
-check('user có 34 permission (admin)', confirm.body?.user?.permissions?.length === 34, `got ${confirm.body?.user?.permissions?.length}`);
+check('user có 36 permission (admin)', confirm.body?.user?.permissions?.length === 36, `got ${confirm.body?.user?.permissions?.length}`);
 
 const adminToken = confirm.body.accessToken;
 const adminCookie = (confirm.setCookie ?? '').split(';')[0];
