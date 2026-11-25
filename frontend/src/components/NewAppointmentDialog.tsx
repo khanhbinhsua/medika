@@ -89,14 +89,14 @@ export function NewAppointmentDialog({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-ink/25 p-4 backdrop-blur-[2px] sm:items-center"
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-ink/25 p-4 backdrop-blur-[2px]"
       onMouseDown={(e) => e.target === e.currentTarget && onClose()}
     >
       <form
         role="dialog"
         aria-modal="true"
         aria-labelledby="new-appt-title"
-        className="plate rise w-full max-w-xl"
+        className="plate rise my-auto w-full max-w-xl"
         onSubmit={(e) => {
           e.preventDefault();
           setError(null);

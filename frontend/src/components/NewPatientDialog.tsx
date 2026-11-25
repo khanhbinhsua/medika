@@ -70,7 +70,7 @@ export function NewPatientDialog({ onClose, onCreated }: { onClose: () => void; 
 
   return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-ink/25 p-4 backdrop-blur-[2px] sm:items-center"
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-ink/25 p-4 backdrop-blur-[2px]"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -79,7 +79,7 @@ export function NewPatientDialog({ onClose, onCreated }: { onClose: () => void; 
         role="dialog"
         aria-modal="true"
         aria-labelledby="new-patient-title"
-        className="plate rise w-full max-w-2xl"
+        className="plate rise my-auto w-full max-w-2xl"
       >
         <div className="flex items-center justify-between border-b border-rule px-5 py-3.5">
           <div>

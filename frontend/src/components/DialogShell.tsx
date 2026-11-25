@@ -28,10 +28,10 @@ export function DialogShell({
   // do animation transform) và bị header sticky z-20 phủ lên phần trên.
   return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-ink/40 p-4 backdrop-blur-sm sm:items-center"
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-ink/40 p-4 backdrop-blur-sm"
       onMouseDown={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div role="dialog" aria-modal="true" className={`plate float-3 rise w-full rounded-lg ${maxWidth}`}>
+      <div role="dialog" aria-modal="true" className={`plate float-3 rise my-auto w-full rounded-lg ${maxWidth}`}>
         <div className="flex items-center justify-between border-b border-rule px-5 py-3.5">
           <div>
             <div className="tabular field-label text-accent">{eyebrow}</div>
