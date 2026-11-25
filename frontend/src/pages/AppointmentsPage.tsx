@@ -1,25 +1,33 @@
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import {
   fetchAppointments,
+  fetchAppointmentCounts,
   changeAppointmentStatus,
   cancelAppointment,
   APPOINTMENT_STATUS_LABELS,
+  APPOINTMENT_SOURCE_LABELS,
   NEXT_STATUSES,
   formatTimeRange,
   statusTone,
 } from '../lib/clinical';
 import type { Appointment, AppointmentStatus } from '../lib/clinical';
+import { fetchDoctors } from '../lib/booking';
 import { getErrorMessage } from '../lib/api-client';
 import { useAuthStore } from '../stores/auth.store';
-import { Button, Alert, Badge, Skeleton, Input } from '../components/ui';
+import { Button, Alert, Badge, Skeleton, Input, cx } from '../components/ui';
 import { PageHeader } from '../components/PageHeader';
 import { NewAppointmentDialog } from '../components/NewAppointmentDialog';
+import { AppointmentsCalendar } from '../components/AppointmentsCalendar';
+import { AppointmentsBoard } from '../components/AppointmentsBoard';
 import { ReminderStatus } from '../components/ReminderStatus';
 
 const PAGE_SIZE = 20;
+type ViewMode = 'list' | 'calendar' | 'board';
+const VIEW_LABELS: Record<ViewMode, string> = { list: 'Danh sách', calendar: 'Lịch', board: 'Bảng' };
 
 function todayRange(dayOffset: number) {
   const start = new Date();
@@ -34,24 +42,54 @@ export function AppointmentsPage() {
   const can = useAuthStore((s) => s.can);
   const queryClient = useQueryClient();
 
+  const [view, setView] = useState<ViewMode>('list');
   const [dayOffset, setDayOffset] = useState(0);
   const [allDates, setAllDates] = useState(false);
   const [page, setPage] = useState(1);
+  const [status, setStatus] = useState<AppointmentStatus | ''>('');
+  const [doctorId, setDoctorId] = useState('');
+  const [source, setSource] = useState('');
   const [creating, setCreating] = useState(false);
   const [cancelling, setCancelling] = useState<Appointment | null>(null);
 
+  const resetPage = () => setPage(1);
+
   const range = todayRange(dayOffset);
-  const params = allDates
-    ? { page, pageSize: PAGE_SIZE }
-    : { page, pageSize: PAGE_SIZE, from: range.from, to: range.to };
+  const dateRange = allDates ? {} : { from: range.from, to: range.to };
+  const filters = {
+    ...(doctorId ? { doctorId } : {}),
+    ...(source ? { source } : {}),
+  };
+  const params = { page, pageSize: PAGE_SIZE, ...dateRange, ...filters, ...(status ? { status } : {}) };
+  const countsParams = { ...dateRange, ...filters };
 
   const { data, isPending, isError, error } = useQuery({
     queryKey: ['appointments', params],
     queryFn: () => fetchAppointments(params),
     placeholderData: keepPreviousData,
+    enabled: view === 'list',
   });
 
-  const invalidate = () => void queryClient.invalidateQueries({ queryKey: ['appointments'] });
+  const counts = useQuery({
+    queryKey: ['appointment-counts', countsParams],
+    queryFn: () => fetchAppointmentCounts(countsParams),
+    placeholderData: keepPreviousData,
+    enabled: view === 'list',
+  });
+
+  const doctors = useQuery({ queryKey: ['doctors'], queryFn: fetchDoctors });
+
+  const STATUS_FILTERS: Array<AppointmentStatus | ''> = [
+    '', 'scheduled', 'confirmed', 'checked_in', 'in_progress', 'completed', 'cancelled', 'no_show',
+  ];
+  const countFor = (s: AppointmentStatus | '') =>
+    s === '' ? counts.data?.total ?? 0 : counts.data?.byStatus[s] ?? 0;
+
+  // Làm mới mọi khung nhìn lịch hẹn (danh sách/lịch/bảng/đếm) sau khi đổi trạng thái.
+  const invalidate = () =>
+    void queryClient.invalidateQueries({
+      predicate: (q) => typeof q.queryKey[0] === 'string' && (q.queryKey[0] as string).startsWith('appointment'),
+    });
 
   const transition = useMutation({
     mutationFn: ({ id, status }: { id: string; status: AppointmentStatus }) =>
@@ -76,13 +114,31 @@ export function AppointmentsPage() {
     <div className="mx-auto max-w-6xl space-y-5">
       <PageHeader
         title="Lịch hẹn"
-        meta={data ? `${data.pagination.total} lịch` : undefined}
+        meta={view === 'list' && data ? `${data.pagination.total} lịch` : undefined}
         action={
           can('appointment:write') ? <Button onClick={() => setCreating(true)}>Đặt lịch</Button> : undefined
         }
       />
 
+      {/* Chọn chế độ xem */}
+      <div className="flex flex-wrap items-center gap-1.5">
+        {(Object.keys(VIEW_LABELS) as ViewMode[]).map((v) => (
+          <button
+            key={v}
+            type="button"
+            onClick={() => setView(v)}
+            className={cx(
+              'rounded-md border px-3 py-1 text-xs font-medium',
+              view === v ? 'border-accent text-accent' : 'border-rule-strong text-ink-soft hover:bg-surface-sunk',
+            )}
+          >
+            {VIEW_LABELS[v]}
+          </button>
+        ))}
+      </div>
+
       <div className="flex flex-wrap items-center gap-2">
+        {view !== 'calendar' && (
         <div className="flex items-center gap-1">
           <Button
             variant="ghost"
@@ -118,7 +174,9 @@ export function AppointmentsPage() {
             Hôm sau →
           </Button>
         </div>
+        )}
 
+        {view === 'list' && (
         <label className="flex cursor-pointer items-center gap-2 text-xs text-ink-soft">
           <input
             type="checkbox"
@@ -131,10 +189,55 @@ export function AppointmentsPage() {
           />
           Xem mọi ngày
         </label>
+        )}
+
+        {/* Lọc theo bác sĩ / nguồn */}
+        <select
+          value={doctorId}
+          onChange={(e) => { setDoctorId(e.target.value); resetPage(); }}
+          className="ml-auto h-9 rounded-md border border-rule-strong bg-surface px-2 text-xs text-ink"
+        >
+          <option value="">Mọi bác sĩ</option>
+          {doctors.data?.map((d) => (
+            <option key={d.id} value={d.id}>{d.fullName}</option>
+          ))}
+        </select>
+        <select
+          value={source}
+          onChange={(e) => { setSource(e.target.value); resetPage(); }}
+          className="h-9 rounded-md border border-rule-strong bg-surface px-2 text-xs text-ink"
+        >
+          <option value="">Mọi nguồn</option>
+          {Object.entries(APPOINTMENT_SOURCE_LABELS).map(([v, label]) => (
+            <option key={v} value={v}>{label}</option>
+          ))}
+        </select>
       </div>
 
-      <h2 className="text-sm font-medium text-ink">{heading}</h2>
+      {/* Chip trạng thái kèm số đếm */}
+      {view === 'list' && (
+      <div className="flex flex-wrap items-center gap-1.5">
+        {STATUS_FILTERS.map((s) => (
+          <button
+            key={s || 'all'}
+            type="button"
+            onClick={() => { setStatus(s); resetPage(); }}
+            className={cx(
+              'rounded-md border px-2.5 py-1 text-xs',
+              status === s ? 'border-accent text-accent' : 'border-rule-strong text-ink-soft hover:bg-surface-sunk',
+            )}
+          >
+            {s === '' ? 'Tất cả' : APPOINTMENT_STATUS_LABELS[s]}
+            <span className="tabular ml-1 text-ink-faint">{countFor(s)}</span>
+          </button>
+        ))}
+      </div>
+      )}
 
+      {view !== 'calendar' && <h2 className="text-sm font-medium text-ink">{heading}</h2>}
+
+      {view === 'list' && (
+      <>
       {isError && <Alert>{getErrorMessage(error)}</Alert>}
 
       {isPending ? (
@@ -182,6 +285,26 @@ export function AppointmentsPage() {
             </Button>
           </div>
         </div>
+      )}
+      </>
+      )}
+
+      {view === 'calendar' && (
+        <AppointmentsCalendar doctorId={doctorId || undefined} source={source || undefined} />
+      )}
+
+      {view === 'board' && (
+        <AppointmentsBoard
+          from={range.from}
+          to={range.to}
+          doctorId={doctorId || undefined}
+          source={source || undefined}
+          canWrite={can('appointment:write')}
+          canCancel={can('appointment:cancel')}
+          busy={transition.isPending}
+          onTransition={(id, status) => transition.mutate({ id, status })}
+          onCancel={(a) => setCancelling(a)}
+        />
       )}
 
       {creating && (
@@ -301,9 +424,9 @@ function CancelDialog({
     onError: (err) => toast.error(getErrorMessage(err)),
   });
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-40 flex items-center justify-center bg-ink/25 p-4 backdrop-blur-[2px]"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-ink/25 p-4 backdrop-blur-[2px]"
       onMouseDown={(e) => e.target === e.currentTarget && onClose()}
     >
       <form
@@ -344,6 +467,7 @@ function CancelDialog({
           </Button>
         </div>
       </form>
-    </div>
+    </div>,
+    document.body,
   );
 }

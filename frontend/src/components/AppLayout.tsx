@@ -6,6 +6,7 @@ import { cx } from './ui';
 import { IdleGuard } from './IdleGuard';
 import { ThemeToggle } from './ThemeToggle';
 import { BranchSwitcher } from './BranchSwitcher';
+import { GlobalSearch } from './GlobalSearch';
 
 type IconName =
   | 'dashboard' | 'patients' | 'calendar' | 'booking' | 'wallet' | 'clipboard'
@@ -108,7 +109,9 @@ export function AppLayout() {
               <span className="text-sm font-semibold tracking-tight">CRM Y Tế</span>
             </div>
 
-            <div className="flex-1" />
+            <div className="flex flex-1 justify-center px-2">
+              <GlobalSearch />
+            </div>
 
             <BranchSwitcher />
             <ThemeToggle />

@@ -1,11 +1,13 @@
 # 03 · Entity-Relationship Diagram
 
-> **Tái sinh 2026-11-24 từ schema sống** (`backend/src/db/types.ts`, migrations `001`→`025`).
-> Bản cũ đã lệch: vẽ `medical_records`/`lab_results`/`waitlist` (đã drop khi rút gọn lâm
-> sàng 24/08) và thiếu spending/icd10/dklink. Khi sửa schema, cập nhật file này theo.
+> **Tái sinh 2026-11-24 từ schema sống** (`backend/src/db/types.ts` — interface `Database`,
+> migrations `001`→`031`). Khi sửa schema, cập nhật file này theo.
+> Lần này bổ sung nhóm clinic-ops (migrations `027`→`031`, Quyết định B3: nhân CRM đa chi
+> nhánh + module clinic-ops opt-in) và dời chúng vào **Miền 4** riêng.
 
-Ký hiệu: 🔒 = cột mã hoá field-level (ciphertext trong DB). Thực tế: **39 bảng**, chia 3
-miền. Mọi bảng có `id uuid` + `created_at` (lược trong sơ đồ cho gọn).
+Ký hiệu: 🔒 = cột mã hoá field-level (ciphertext trong DB). Thực tế: **51 bảng**, chia 4
+miền. Mọi bảng có `id uuid` PK + `created_at` (lược trong sơ đồ cho gọn) trừ các bảng danh
+mục/nối ghi rõ PK khác.
 
 ## Miền 1 — Nền tảng: Auth · RBAC · Crypto · Audit
 
@@ -25,7 +27,7 @@ erDiagram
     ROLE_PERMISSIONS { uuid role_id PK_FK; uuid permission_id PK_FK }
     USERS {
         uuid id PK; citext email UK; text password_hash; text full_name
-        uuid role_id FK; text status; bool mfa_enabled
+        uuid role_id FK; text status; text locale; bool mfa_enabled
         int failed_login_attempts; timestamptz locked_until; timestamptz last_login_at
     }
     MFA_SECRETS { uuid user_id PK_FK; bytea secret_enc "🔒"; uuid dek_id FK; text_array recovery_codes_hashed; text last_used_step }
@@ -39,7 +41,7 @@ erDiagram
     }
 ```
 
-## Miền 2 — Lõi bệnh nhân: hồ sơ · lịch hẹn · đơn thuốc · tài liệu · cổng BN
+## Miền 2 — Lõi bệnh nhân: hồ sơ · lịch hẹn · đơn thuốc · tài liệu · ảnh · cổng BN
 
 ```mermaid
 erDiagram
@@ -60,6 +62,8 @@ erDiagram
     APPOINTMENTS ||--o{ APPOINTMENT_REMINDERS : "gửi"
     PATIENT_PORTAL_ACCOUNTS ||--o{ PATIENT_PORTAL_SESSIONS : "có"
     ICD10_CODES ||..o{ PATIENT_MEDICAL_HISTORY : "mã (ref)"
+    ENCOUNTERS ||..o{ PRESCRIPTIONS : "kê từ bệnh án (Miền 4)"
+    ENCOUNTERS ||..o{ CLINICAL_PHOTOS : "gắn lượt khám (Miền 4)"
 
     PATIENTS {
         uuid id PK; text mrn UK
@@ -76,20 +80,20 @@ erDiagram
     PATIENT_MEDICAL_HISTORY { uuid id PK; uuid patient_id FK; text condition; text icd10_code; text status; bytea notes_enc "🔒"; date onset_date; uuid recorded_by FK }
     PATIENT_CONSENTS { uuid id PK; uuid patient_id FK; text consent_type; bool granted; text document_version; timestamptz granted_at; timestamptz revoked_at; uuid witnessed_by FK }
     APPOINTMENTS {
-        uuid id PK; uuid patient_id FK; uuid doctor_id FK
-        timestamptz scheduled_start; timestamptz scheduled_end; text room; text status
+        uuid id PK; uuid patient_id FK; uuid doctor_id FK; uuid branch_id FK
+        text source; timestamptz scheduled_start; timestamptz scheduled_end; text room; text status
         bytea reason_enc "🔒"; bytea cancel_reason_enc "🔒"
         timestamptz checked_in_at; timestamptz completed_at; timestamptz cancelled_at
     }
     APPOINTMENT_NOTES { uuid id PK; uuid appointment_id FK; bytea note_enc "🔒"; uuid author_id FK }
     APPOINTMENT_REMINDERS { uuid id PK; uuid appointment_id FK; text channel; timestamptz scheduled_for; timestamptz sent_at; text status; int attempts }
     PRESCRIPTIONS {
-        uuid id PK; uuid patient_id FK; uuid prescriber_id FK
-        text medication; text rxnorm_code; text dosage; text frequency; int duration_days
+        uuid id PK; uuid patient_id FK; uuid encounter_id FK; uuid prescriber_id FK
+        text medication; text rxnorm_code; text dosage; text frequency; int duration_days; text quantity
         bytea instructions_enc "🔒"; text status; timestamptz prescribed_at; timestamptz expires_at
     }
     DOCUMENTS { uuid id PK; uuid patient_id FK; bytea file_name_enc "🔒"; text mime_type; bigint size_bytes; text storage_key; bytea file_dek_enc "🔒"; text sha256; uuid uploaded_by FK; timestamptz deleted_at }
-    CLINICAL_PHOTOS { uuid id PK; uuid patient_id FK; uuid encounter_id FK; text category; text body_area; bytea caption_enc "🔒"; date taken_at; text mime_type; bigint size_bytes; text storage_key; bytea file_dek_enc "🔒"; text sha256; uuid uploaded_by FK; timestamptz deleted_at }
+    CLINICAL_PHOTOS { uuid id PK; uuid patient_id FK; uuid encounter_id FK; text category; text body_area; bytea caption_enc "🔒"; date taken_at; text mime_type; bigint size_bytes; uuid storage_key UK; bytea file_dek_enc "🔒"; text sha256; uuid uploaded_by FK; timestamptz deleted_at }
     PHI_ACCESS_LOGS { uuid id PK; uuid request_id; uuid patient_id FK; uuid accessed_by FK; text access_type; text_array fields_accessed; text purpose; inet ip_address }
     PATIENT_PORTAL_ACCOUNTS { uuid id PK; uuid patient_id FK; text login_email_hash; text password_hash; text status; bool must_change_password }
     PATIENT_PORTAL_SESSIONS { uuid id PK; uuid portal_account_id FK; text refresh_token_hash; timestamptz expires_at; timestamptz revoked_at }
@@ -138,7 +142,73 @@ erDiagram
     SPENDING_TIERS { text code PK; text name; numeric min_total; int sort }
 ```
 
-`SPENDING_TIERS` và `ICD10_CODES` là **bảng danh mục/cấu hình** (không gắn bệnh nhân).
+## Miền 4 — Clinic-ops (opt-in, B3): chi nhánh · đặt lịch · POS · bệnh án
+
+```mermaid
+erDiagram
+    BRANCHES ||--o{ USER_BRANCHES : "phân công"
+    USERS ||--o{ USER_BRANCHES : "làm tại"
+    BRANCHES ||--o{ APPOINTMENTS : "tại"
+    BRANCHES ||--o{ BOOKING_REQUESTS : "nhận"
+    BOOKING_REQUESTS ||--o| APPOINTMENTS : "xác nhận → tạo"
+    BRANCHES ||--o{ SERVICES : "cung cấp"
+    BRANCHES ||--o{ ORDERS : "lập tại"
+    PATIENTS ||--o{ ORDERS : "của"
+    APPOINTMENTS ||--o| ORDERS : "gắn (0..1)"
+    ORDERS ||--o{ ORDER_LINES : "gồm"
+    ORDERS ||--o{ PAYMENTS : "thu"
+    ORDERS ||--o| CUSTOMER_PACKAGES : "sinh thẻ"
+    PACKAGES ||--o{ CUSTOMER_PACKAGES : "mẫu gói"
+    PATIENTS ||--o{ CUSTOMER_PACKAGES : "sở hữu thẻ"
+    SERVICES ||..o{ ORDER_LINES : "ref_id (service)"
+    PACKAGES ||..o{ ORDER_LINES : "ref_id (package)"
+    BRANCHES ||--o{ ENCOUNTERS : "khám tại"
+    PATIENTS ||--o{ ENCOUNTERS : "có bệnh án"
+    USERS ||--o{ ENCOUNTERS : "bác sĩ khám"
+    APPOINTMENTS ||--o| ENCOUNTERS : "sinh (0..1)"
+    ICD10_CODES ||..o{ ENCOUNTERS : "chẩn đoán (ref)"
+    ENCOUNTERS ||--o{ ENCOUNTER_VERSIONS : "bản bổ sung"
+    ENCOUNTERS ||--o{ PRESCRIPTIONS : "kê đơn (Miền 2)"
+    ENCOUNTERS ||--o{ CLINICAL_PHOTOS : "ảnh (Miền 2)"
+
+    BRANCHES {
+        uuid id PK; text code UK; text name; text address; text phone
+        int geo_radius_m; jsonb opening_hours; jsonb holidays; int slot_capacity
+        bool is_default "UK khi true"; bool active
+    }
+    USER_BRANCHES { uuid user_id PK_FK; uuid branch_id PK_FK }
+    BOOKING_REQUESTS {
+        uuid id PK; uuid branch_id FK; timestamptz requested_start; timestamptz requested_end
+        text full_name "plaintext (staff-only)"; text phone "plaintext"; text note
+        text status "pending|confirmed|rejected"; text source; uuid confirmed_appointment_id FK
+        text reject_reason; uuid handled_by FK; timestamptz handled_at
+    }
+    SERVICES { uuid id PK; uuid branch_id FK "null=dùng chung"; text code; text name; text category; bigint price_vnd; bool active }
+    PACKAGES { uuid id PK; text name; text unit "session|shot"; int qty; bigint price_vnd; int validity_days; bool active }
+    ORDERS {
+        uuid id PK; text code UK "DH-000001"; uuid branch_id FK; uuid patient_id FK; uuid appointment_id FK
+        text status "draft|unpaid|partial|paid|cancelled"; bigint total_vnd; text note; uuid created_by FK
+    }
+    ORDER_LINES {
+        uuid id PK; uuid order_id FK; text kind "service|package|other"; uuid ref_id "soft ref (no FK)"
+        text name "chụp lúc bán"; int qty; bigint unit_price_vnd; bigint discount_vnd; bigint amount_vnd
+    }
+    PAYMENTS { uuid id PK; uuid order_id FK; text method "cash|transfer|card|prepaid|other"; bigint amount_vnd; uuid received_by FK; timestamptz paid_at }
+    CUSTOMER_PACKAGES { uuid id PK; uuid patient_id FK; uuid package_id FK; uuid order_id FK; text name; int total; int used; date expires_at }
+    ENCOUNTERS {
+        uuid id PK; uuid branch_id FK; uuid patient_id FK; uuid appointment_id FK; uuid doctor_id FK
+        bytea reason_enc "🔒"; bytea history_enc "🔒"; bytea past_personal_enc "🔒"; bytea past_family_enc "🔒"
+        jsonb vitals "non-PHI sinh hiệu"; bytea exam_general_enc "🔒"; bytea exam_organs_enc "🔒"
+        bytea labs_summary_enc "🔒"; bytea treatment_enc "🔒"; bytea dx_note_enc "🔒"
+        text dx_primary_icd10 FK; text_array dx_secondary_icd10; date treatment_from; date treatment_to
+        text status "draft|signed|amended"; timestamptz signed_at; uuid signed_by FK; bool locked
+    }
+    ENCOUNTER_VERSIONS { uuid id PK; uuid encounter_id FK; int version; bytea snapshot_enc "🔒"; uuid changed_by FK; text change_reason }
+```
+
+`SPENDING_TIERS`, `ICD10_CODES`, `SERVICES`, `PACKAGES` là **bảng danh mục/cấu hình**
+(`BRANCHES` nửa danh mục, nửa thực thể vận hành). `ROLE_PERMISSIONS` và `USER_BRANCHES` là
+**bảng nối** PK ghép (không có `id`/`created_at`).
 
 ## Ghi chú thiết kế
 
@@ -149,7 +219,9 @@ cho combobox gợi ý. Tìm mờ: giải mã theo trang trên tập đã lọc.
 
 ### `dek_id` ở mức bệnh nhân → crypto-shredding
 Mỗi bệnh nhân một DEK, wrap bởi KEK trong KMS. Xoá DEK (`purged_at`) = **crypto-shredding**,
-đạt "secure deletion" (HIPAA/PDPL) không cần ghi đè vật lý.
+đạt "secure deletion" (HIPAA/PDPL) không cần ghi đè vật lý. Mọi PHI của bệnh nhân — kể cả
+bệnh án (`encounters.*_enc`), chú thích ảnh (`clinical_photos.caption_enc`) và per-file DEK
+(`documents`/`clinical_photos.file_dek_enc`) — mã hoá bằng DEK này nên cùng bị shred.
 
 ### `audit_logs` hash-chain
 `entry_hash = SHA256(prev_hash || canonical_json(entry))`. Sửa/xoá một dòng bằng quyền DB
@@ -160,14 +232,30 @@ sẽ làm đứt chuỗi; job kiểm tra hằng ngày phát hiện. Ghi audit b�
 `audit_logs` và `phi_access_logs` partition theo thời gian → PRIMARY KEY phải chứa cột
 partition: `(id, created_at)` / `(id, accessed_at)`.
 
-### Đơn thuốc đứng độc lập
-Sau khi rút gọn lâm sàng (24/08), `prescriptions` **không còn `record_id`** (bệnh án SOAP
-đã gỡ) — gắn trực tiếp với bệnh nhân, phục vụ nhắc tái khám. Khi bật module clinic (Mốc 1,
-B3) sẽ thêm `encounter_id` + mã đơn quốc gia (xem `replica/architecture.md`).
+### Bệnh án ngoại trú (`encounters`) + đơn thuốc
+Mốc 1 (B3) đã bật module clinic-ops: `prescriptions.encounter_id` (nullable, `ON DELETE SET
+NULL`) gắn đơn thuốc với lượt khám khi kê ngay trong bệnh án; đơn nhắc tái khám vẫn gắn trực
+tiếp bệnh nhân (`encounter_id` null). Bệnh án theo mẫu **15/BV-01** (TT 32/2023/TT-BYT): phần
+hành chính lấy từ hồ sơ bệnh nhân (không lưu lại), các trường lâm sàng mã hoá field-level,
+mã ICD-10 để plaintext cho thống kê/segment. Hoàn tất = `signed` + `locked`; sửa sau khoá →
+bản `amended`, snapshot ciphertext bản cũ lưu ở `encounter_versions`.
+
+### POS / gói (`orders`)
+Tiền = `bigint` VND (đồng nguyên, không cent). Một `orders` gồm nhiều `order_lines`
+(dịch vụ/gói/nhập tay) và thu bằng nhiều `payments` → cho thu một phần (status `partial` =
+công nợ). `order_lines.ref_id` là **soft reference** tới `services.id`/`packages.id` theo
+`kind` (không có FK để `name`/giá chụp tại thời điểm bán không vỡ khi danh mục đổi). Mua gói
+đã thanh toán → sinh `customer_packages` (thẻ buổi, `total`/`used`).
+
+### Đặt lịch online (`booking_requests`)
+Public **không** ghi thẳng vào bảng PHI: ghi staging `booking_requests` (tên/SĐT plaintext,
+staff-only). Lễ tân xác nhận → tạo/khớp bệnh nhân + lịch hẹn, set `confirmed_appointment_id`.
+`appointments.source` (`prebooked|phone|online|walkin`) đánh dấu nguồn.
 
 ### Soft delete
-`patients`, `patient_transactions`, `documents` có `deleted_at`. `audit_logs`/`phi_access_logs`
-**không bao giờ** xoá. Hard delete chỉ qua thủ tục retention có phê duyệt, ghi trong audit.
+`patients`, `patient_transactions`, `documents`, `clinical_photos` có `deleted_at`.
+`audit_logs`/`phi_access_logs` **không bao giờ** xoá. Hard delete chỉ qua thủ tục retention có
+phê duyệt, ghi trong audit.
 
 ### Tích hợp DK-link
 `patients.dklink_patient_id` (unique khi set) liên kết 1-1 với bệnh nhân bên DK-link; webhook

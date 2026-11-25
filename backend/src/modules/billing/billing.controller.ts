@@ -3,6 +3,8 @@ import { z } from 'zod';
 import * as service from './billing.service.js';
 import type { Actor, RequestMeta } from '../patient/patient.service.js';
 import { createOrderSchema, addLineSchema, takePaymentSchema, listOrdersSchema } from './billing.schemas.js';
+import { writeAuditLog } from '../../audit/audit-logger.js';
+import { db } from '../../db/index.js';
 
 const idParam = z.object({ id: z.string().uuid('Mã đơn không hợp lệ') });
 const lineParam = z.object({ id: z.string().uuid(), lineId: z.string().uuid('Mã dòng không hợp lệ') });
@@ -60,4 +62,23 @@ export async function patientOrders(req: Request, res: Response) {
   const { patientId } = patientParam.parse(req.params);
   noStore(res);
   res.json(await service.listByPatient(patientId));
+}
+export async function patientPackages(req: Request, res: Response) {
+  const { patientId } = patientParam.parse(req.params);
+  noStore(res);
+  res.json(await service.listPatientPackages(patientId));
+}
+export async function exportOrders(req: Request, res: Response) {
+  const q = listOrdersSchema.parse(req.query);
+  const csv = await service.exportOrdersCsv(q);
+  await db.transaction().execute((trx) =>
+    writeAuditLog(trx, {
+      requestId: req.requestId, actorId: req.user!.sub, actorEmail: req.user!.email,
+      action: 'ORDER_EXPORT', entityType: 'order', reason: 'so-thanh-toan', ipAddress: req.ip,
+    }),
+  );
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', 'attachment; filename="so-thanh-toan.csv"');
+  res.setHeader('Cache-Control', 'no-store');
+  res.send(csv);
 }

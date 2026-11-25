@@ -6,6 +6,7 @@ import {
   createAppointmentSchema,
   updateAppointmentSchema,
   listAppointmentsSchema,
+  appointmentCountsSchema,
   transitionSchema,
   cancelAppointmentSchema,
 } from './appointment.schemas.js';
@@ -35,6 +36,12 @@ export async function list(req: Request, res: Response) {
   const query = listAppointmentsSchema.parse(req.query);
   noStore(res);
   res.json(await service.listAppointments(query, actor(req), meta(req)));
+}
+
+export async function counts(req: Request, res: Response) {
+  const query = appointmentCountsSchema.parse(req.query);
+  noStore(res);
+  res.json(await service.countsByStatus(query));
 }
 
 export async function getById(req: Request, res: Response) {

@@ -8,6 +8,7 @@ export const appointmentRouter: Router = Router();
 appointmentRouter.use(authenticate);
 
 appointmentRouter.get('/', authorize('appointment:read'), asyncHandler(controller.list));
+appointmentRouter.get('/counts', authorize('appointment:read'), asyncHandler(controller.counts));
 appointmentRouter.post('/', authorize('appointment:write'), asyncHandler(controller.create));
 appointmentRouter.get('/:appointmentId', authorize('appointment:read'), asyncHandler(controller.getById));
 appointmentRouter.patch('/:appointmentId', authorize('appointment:write'), asyncHandler(controller.update));

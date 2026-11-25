@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { apiClient, getErrorMessage } from '../lib/api-client';
 import { fetchPatients, fullName } from '../lib/patients';
 import { createAppointment } from '../lib/clinical';
+import { fetchPatientPackages } from '../lib/billing';
 import { Button, Input, Field, Alert } from './ui';
 
 interface Doctor {
@@ -37,9 +39,16 @@ export function NewAppointmentDialog({
   const [durationMin, setDurationMin] = useState(30);
   const [room, setRoom] = useState('');
   const [reason, setReason] = useState('');
+  const [customerPackageId, setCustomerPackageId] = useState('');
   const [error, setError] = useState<string | null>(null);
 
   const doctors = useQuery({ queryKey: ['doctors'], queryFn: fetchDoctors });
+  const packages = useQuery({
+    queryKey: ['patient-packages', patientId],
+    queryFn: () => fetchPatientPackages(patientId),
+    enabled: !!patientId,
+  });
+  const usablePackages = (packages.data ?? []).filter((p) => p.remaining > 0);
   const patients = useQuery({
     queryKey: ['patients', 1, ''],
     queryFn: () => fetchPatients({ page: 1, pageSize: 50 }),
@@ -68,6 +77,7 @@ export function NewAppointmentDialog({
         scheduledEnd: end,
         ...(room.trim() ? { room: room.trim() } : {}),
         ...(reason.trim() ? { reason: reason.trim() } : {}),
+        ...(customerPackageId ? { customerPackageId } : {}),
       });
     },
     onSuccess: () => {
@@ -77,16 +87,16 @@ export function NewAppointmentDialog({
     onError: (err) => setError(getErrorMessage(err)),
   });
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-40 flex items-start justify-center overflow-y-auto bg-ink/25 p-4 backdrop-blur-[2px] sm:items-center"
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-ink/25 p-4 backdrop-blur-[2px]"
       onMouseDown={(e) => e.target === e.currentTarget && onClose()}
     >
       <form
         role="dialog"
         aria-modal="true"
         aria-labelledby="new-appt-title"
-        className="plate rise w-full max-w-xl"
+        className="plate rise my-auto w-full max-w-xl"
         onSubmit={(e) => {
           e.preventDefault();
           setError(null);
@@ -124,7 +134,7 @@ export function NewAppointmentDialog({
             >
               <select
                 value={patientId}
-                onChange={(e) => setPatientId(e.target.value)}
+                onChange={(e) => { setPatientId(e.target.value); setCustomerPackageId(''); }}
                 required
                 className="h-10 w-full rounded border border-rule-strong bg-surface px-3 text-sm text-ink"
               >
@@ -191,6 +201,23 @@ export function NewAppointmentDialog({
             </Field>
           </div>
 
+          {usablePackages.length > 0 && (
+            <Field label="Trừ vào gói (buổi còn lại)" hint="Khi lịch hẹn hoàn tất sẽ tự trừ 1 buổi của gói đã chọn.">
+              <select
+                value={customerPackageId}
+                onChange={(e) => setCustomerPackageId(e.target.value)}
+                className="h-10 w-full rounded border border-rule-strong bg-surface px-3 text-sm text-ink"
+              >
+                <option value="">— Không dùng gói —</option>
+                {usablePackages.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name} · còn {p.remaining}/{p.total}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          )}
+
           <div className="flex justify-end gap-2">
             <Button type="button" variant="ghost" onClick={onClose}>
               Huỷ
@@ -201,6 +228,7 @@ export function NewAppointmentDialog({
           </div>
         </div>
       </form>
-    </div>
+    </div>,
+    document.body,
   );
 }

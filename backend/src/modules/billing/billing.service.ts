@@ -5,6 +5,7 @@ import { writeAuditLog, writePhiAccessLog } from '../../audit/audit-logger.js';
 import { NotFoundError, ValidationError, ConflictError } from '../../middleware/errors.js';
 import type { Actor, RequestMeta } from '../patient/patient.service.js';
 import type { CreateOrderInput, AddLineInput, TakePaymentInput, ListOrdersQuery } from './billing.schemas.js';
+import { toCsv } from '../report/report.service.js';
 
 type Db = typeof db | Transaction<Database>;
 const n = (v: unknown) => Number(v ?? 0);
@@ -145,7 +146,7 @@ export async function takePayment(orderId: string, input: TakePaymentInput, acto
 
 export async function cancelOrder(orderId: string, actor: Actor, meta: RequestMeta): Promise<void> {
   await db.transaction().execute(async (trx) => {
-    const order = await lockOrder(trx, orderId);
+    await lockOrder(trx, orderId);
     const paid = n((await trx.selectFrom('payments').select((eb) => eb.fn.sum<string>('amount_vnd').as('s')).where('order_id', '=', orderId).executeTakeFirst())?.s);
     if (paid > 0) throw new ConflictError('Đơn đã thu tiền — cần hoàn tiền trước khi huỷ');
     await trx.updateTable('orders').set({ status: 'cancelled', updated_at: new Date() }).where('id', '=', orderId).execute();
@@ -190,6 +191,46 @@ export async function listOrders(q: ListOrdersQuery): Promise<Omit<OrderDto, 'li
 export async function receivables(): Promise<{ total: number; count: number; items: Omit<OrderDto, 'lines' | 'payments'>[] }> {
   const items = (await listOrders({ status: undefined })).filter((o) => o.status === 'unpaid' || o.status === 'partial');
   return { total: items.reduce((s, o) => s + o.remainingVnd, 0), count: items.length, items };
+}
+
+const ORDER_STATUS_VI: Record<string, string> = {
+  draft: 'Nháp', unpaid: 'Chưa thu', partial: 'Thu một phần', paid: 'Đã thu đủ', cancelled: 'Đã huỷ',
+};
+
+/** Xuất sổ thanh toán ra CSV mở được bằng Excel (BOM UTF-8). Dùng lại bộ lọc của listOrders. */
+export async function exportOrdersCsv(q: ListOrdersQuery): Promise<string> {
+  const rows = await listOrders(q);
+  return toCsv(
+    ['Mã đơn', 'MRN', 'Trạng thái', 'Tổng (VND)', 'Đã thu (VND)', 'Còn lại (VND)', 'Ghi chú', 'Ngày tạo'],
+    rows.map((o) => [
+      o.code, o.patientMrn ?? '', ORDER_STATUS_VI[o.status] ?? o.status,
+      o.totalVnd, o.paidVnd, o.remainingVnd, o.note ?? '', new Date(o.createdAt).toLocaleString('vi-VN'),
+    ]),
+  );
+}
+
+export interface PatientPackageDto {
+  id: string; name: string; total: number; used: number; remaining: number;
+  expiresAt: string | null; createdAt: string;
+}
+
+/** Thẻ buổi (gói) của bệnh nhân — phục vụ ô "buổi còn lại" và màn hình gắn gói vào lịch hẹn. */
+export async function listPatientPackages(patientId: string): Promise<PatientPackageDto[]> {
+  const rows = await db
+    .selectFrom('customer_packages')
+    .select(['id', 'name', 'total', 'used', 'expires_at', 'created_at'])
+    .where('patient_id', '=', patientId)
+    .orderBy('created_at', 'desc')
+    .execute();
+  return rows.map((r) => ({
+    id: r.id,
+    name: r.name,
+    total: r.total,
+    used: r.used,
+    remaining: Math.max(0, r.total - r.used),
+    expiresAt: r.expires_at ? new Date(r.expires_at).toISOString().slice(0, 10) : null,
+    createdAt: new Date(r.created_at).toISOString(),
+  }));
 }
 
 // ── nội bộ ──

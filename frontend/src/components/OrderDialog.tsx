@@ -5,6 +5,8 @@ import {
   getOrder, fetchCatalog, addLine, removeLine, takePayment, cancelOrder,
   vnd, ORDER_STATUS_VI, ORDER_STATUS_TONE, METHOD_VI, METHODS,
 } from '../lib/billing';
+import { fetchPatient, fullName } from '../lib/patients';
+import { printReceipt } from '../lib/print';
 import { getErrorMessage } from '../lib/api-client';
 import { useAuthStore } from '../stores/auth.store';
 import { Button, Field, Input, Alert, Badge, Skeleton } from './ui';
@@ -17,6 +19,11 @@ export function OrderDialog({ orderId, onClose, onChanged }: { orderId: string; 
   const canManage = useAuthStore((s) => s.can)('billing:manage');
   const order = useQuery({ queryKey: ['order', orderId], queryFn: () => getOrder(orderId) });
   const catalog = useQuery({ queryKey: ['catalog'], queryFn: fetchCatalog, enabled: canManage });
+  const patient = useQuery({
+    queryKey: ['patient', order.data?.patientId],
+    queryFn: () => fetchPatient(order.data!.patientId),
+    enabled: !!order.data?.patientId,
+  });
 
   const [svc, setSvc] = useState('');
   const [pkg, setPkg] = useState('');
@@ -94,7 +101,17 @@ export function OrderDialog({ orderId, onClose, onChanged }: { orderId: string; 
               <div className="flex justify-between text-sm"><span className="text-ink-soft">Tổng</span><span className="tabular font-medium">{vnd(o.totalVnd)}</span></div>
               <div className="flex justify-between text-sm"><span className="text-ink-soft">Đã thu</span><span className="tabular text-ok">{vnd(o.paidVnd)}</span></div>
               <div className="mt-1 flex justify-between border-t border-rule pt-1 text-sm"><span className="font-medium">Còn lại</span><span className="tabular text-lg font-semibold text-danger">{vnd(o.remainingVnd)}</span></div>
-              <div className="mt-2"><Badge tone={ORDER_STATUS_TONE[o.status] ?? 'neutral'}>{ORDER_STATUS_VI[o.status] ?? o.status}</Badge></div>
+              <div className="mt-2 flex items-center justify-between">
+                <Badge tone={ORDER_STATUS_TONE[o.status] ?? 'neutral'}>{ORDER_STATUS_VI[o.status] ?? o.status}</Badge>
+                <Button
+                  variant="ghost"
+                  className="h-8 px-3 text-xs"
+                  disabled={!patient.data || o.lines.length === 0}
+                  onClick={() => patient.data && printReceipt({ order: o, patientName: fullName(patient.data), mrn: patient.data.mrn })}
+                >
+                  In biên nhận
+                </Button>
+              </div>
             </div>
 
             {/* Thu tiền */}

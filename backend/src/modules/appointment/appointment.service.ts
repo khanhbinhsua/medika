@@ -11,6 +11,7 @@ import type {
   CreateAppointmentInput,
   UpdateAppointmentInput,
   ListAppointmentsQuery,
+  AppointmentCountsQuery,
 } from './appointment.schemas.js';
 
 export interface AppointmentDto {
@@ -20,6 +21,9 @@ export interface AppointmentDto {
   patientMrn: string;
   doctorId: string;
   doctorName: string;
+  branchId: string | null;
+  source: string;
+  customerPackageId: string | null;
   scheduledStart: Date;
   scheduledEnd: Date;
   room: string | null;
@@ -67,6 +71,7 @@ export async function createAppointment(
   return db.transaction().execute(async (trx) => {
     const patient = await loadPatientKey(trx, input.patientId);
     const dek = await loadDek(trx, patient.dek_id);
+    if (input.customerPackageId) await assertPackageForPatient(trx, input.customerPackageId, input.patientId);
     // Mốc 0 đa chi nhánh: gắn lịch vào chi nhánh mặc định (chọn chi nhánh cụ thể
     // sẽ bổ sung khi làm lại màn lịch hẹn ở Mốc 1).
     const defaultBranch = await trx
@@ -82,6 +87,7 @@ export async function createAppointment(
           patient_id: input.patientId,
           doctor_id: input.doctorId,
           branch_id: defaultBranch?.id ?? null,
+          customer_package_id: input.customerPackageId ?? null,
           scheduled_start: new Date(input.scheduledStart),
           scheduled_end: new Date(input.scheduledEnd),
           room: input.room ?? null,
@@ -137,6 +143,9 @@ export async function listAppointments(query: ListAppointmentsQuery, actor: Acto
 
   if (query.patientId) base = base.where('appointments.patient_id', '=', query.patientId);
   if (query.doctorId) base = base.where('appointments.doctor_id', '=', query.doctorId);
+  if (query.branchId) base = base.where('appointments.branch_id', '=', query.branchId);
+  if (query.room) base = base.where('appointments.room', '=', query.room);
+  if (query.source) base = base.where('appointments.source', '=', query.source);
   if (query.status) base = base.where('appointments.status', '=', query.status);
   if (query.from) base = base.where('appointments.scheduled_start', '>=', new Date(query.from));
   if (query.to) base = base.where('appointments.scheduled_start', '<=', new Date(query.to));
@@ -198,6 +207,37 @@ export async function listAppointments(query: ListAppointmentsQuery, actor: Acto
   };
 }
 
+/** Đếm lịch hẹn theo trạng thái cho badge bộ lọc (không trả PHI, không ghi phi-access). */
+export async function countsByStatus(
+  query: AppointmentCountsQuery,
+): Promise<{ total: number; byStatus: Record<string, number> }> {
+  let base = db
+    .selectFrom('appointments')
+    .innerJoin('patients', 'patients.id', 'appointments.patient_id')
+    .where('patients.deleted_at', 'is', null);
+
+  if (query.doctorId) base = base.where('appointments.doctor_id', '=', query.doctorId);
+  if (query.branchId) base = base.where('appointments.branch_id', '=', query.branchId);
+  if (query.room) base = base.where('appointments.room', '=', query.room);
+  if (query.source) base = base.where('appointments.source', '=', query.source);
+  if (query.from) base = base.where('appointments.scheduled_start', '>=', new Date(query.from));
+  if (query.to) base = base.where('appointments.scheduled_start', '<=', new Date(query.to));
+
+  const rows = await base
+    .select((eb) => ['appointments.status', eb.fn.countAll<string>().as('n')])
+    .groupBy('appointments.status')
+    .execute();
+
+  const byStatus: Record<string, number> = {};
+  let total = 0;
+  for (const r of rows) {
+    const n = Number(r.n);
+    byStatus[r.status] = n;
+    total += n;
+  }
+  return { total, byStatus };
+}
+
 export async function getAppointment(id: string, actor: Actor, meta: RequestMeta): Promise<AppointmentDto> {
   const row = await selectFull(id);
   if (!row) throw new NotFoundError('Lịch hẹn');
@@ -251,6 +291,10 @@ export async function updateAppointment(
       if (input.reason !== undefined) {
         patch.reason_enc = input.reason === null ? null : encryptOptionalField(input.reason, dek);
       }
+      if (input.customerPackageId !== undefined) {
+        if (input.customerPackageId) await assertPackageForPatient(trx, input.customerPackageId, current.patient_id);
+        patch.customer_package_id = input.customerPackageId;
+      }
 
       await trx.updateTable('appointments').set(patch).where('id', '=', id).execute().catch(rethrowOverlap);
 
@@ -282,7 +326,7 @@ export async function transition(
   return db.transaction().execute(async (trx) => {
     const current = await trx
       .selectFrom('appointments')
-      .select(['id', 'patient_id', 'status'])
+      .select(['id', 'patient_id', 'status', 'customer_package_id'])
       .where('id', '=', id)
       .forUpdate()
       .executeTakeFirst();
@@ -302,6 +346,28 @@ export async function transition(
     if (next === 'completed') patch.completed_at = now;
 
     await trx.updateTable('appointments').set(patch).where('id', '=', id).execute();
+
+    // Trừ 1 buổi của thẻ gói khi hoàn tất (nếu còn buổi và chưa hết hạn). Guard bằng
+    // điều kiện used < total để không trừ âm; hết buổi/hết hạn thì vẫn cho hoàn tất.
+    if (next === 'completed' && current.customer_package_id) {
+      const dec = await trx
+        .updateTable('customer_packages')
+        .set((eb) => ({ used: eb('used', '+', 1) }))
+        .where('id', '=', current.customer_package_id)
+        .where((eb) => eb('used', '<', eb.ref('total')))
+        .where((eb) => eb.or([eb('expires_at', 'is', null), eb('expires_at', '>=', new Date())]))
+        .executeTakeFirst();
+      await writeAuditLog(trx, {
+        requestId: meta.requestId,
+        actorId: actor.id,
+        actorEmail: actor.email,
+        action: 'PACKAGE_SESSION_USE',
+        entityType: 'customer_package',
+        entityId: current.customer_package_id,
+        reason: dec.numUpdatedRows ? 'trừ 1 buổi' : 'không còn buổi/hết hạn — không trừ',
+        ipAddress: meta.ipAddress,
+      });
+    }
 
     await writeAuditLog(trx, {
       requestId: meta.requestId,
@@ -398,6 +464,17 @@ function selectFull(id: string, trx: Db = db) {
     .executeTakeFirst();
 }
 
+/** Thẻ gói phải thuộc đúng bệnh nhân của lịch hẹn thì mới cho gắn. */
+async function assertPackageForPatient(trx: Db, packageId: string, patientId: string) {
+  const p = await trx
+    .selectFrom('customer_packages')
+    .select('id')
+    .where('id', '=', packageId)
+    .where('patient_id', '=', patientId)
+    .executeTakeFirst();
+  if (!p) throw new ValidationError('Thẻ gói không thuộc bệnh nhân này');
+}
+
 async function loadPatientKey(trx: Db, patientId: string) {
   const patient = await trx
     .selectFrom('patients')
@@ -442,6 +519,9 @@ interface AppointmentRow {
   id: string;
   patient_id: string;
   doctor_id: string;
+  branch_id: string | null;
+  source: string;
+  customer_package_id: string | null;
   scheduled_start: Date;
   scheduled_end: Date;
   room: string | null;
@@ -473,6 +553,9 @@ function toDto(row: AppointmentRow, dek: Buffer, patient: PatientBits): Appointm
     patientMrn: patient.patient_mrn ?? patient.mrn ?? '',
     doctorId: row.doctor_id,
     doctorName: row.doctor_name ?? '',
+    branchId: row.branch_id,
+    source: row.source,
+    customerPackageId: row.customer_package_id,
     scheduledStart: row.scheduled_start,
     scheduledEnd: row.scheduled_end,
     room: row.room,

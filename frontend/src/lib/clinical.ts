@@ -57,6 +57,22 @@ export async function fetchAppointments(params: Record<string, string | number |
   return data;
 }
 
+export interface AppointmentCounts {
+  total: number;
+  byStatus: Record<string, number>;
+}
+export async function fetchAppointmentCounts(params: Record<string, string | number | undefined>) {
+  const { data } = await apiClient.get<AppointmentCounts>('/appointments/counts', { params });
+  return data;
+}
+
+export const APPOINTMENT_SOURCE_LABELS: Record<string, string> = {
+  prebooked: 'Đặt trước',
+  phone: 'Điện thoại',
+  online: 'Online',
+  walkin: 'Vãng lai',
+};
+
 export async function createAppointment(input: Record<string, unknown>) {
   const { data } = await apiClient.post<Appointment>('/appointments', input);
   return data;

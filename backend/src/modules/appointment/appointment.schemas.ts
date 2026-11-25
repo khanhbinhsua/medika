@@ -12,6 +12,7 @@ export const createAppointmentSchema = z
     scheduledEnd: isoDateTime,
     room: z.string().trim().max(50).optional(),
     reason: z.string().trim().max(1000).optional(),
+    customerPackageId: z.string().uuid().optional(),
   })
   .refine((v) => new Date(v.scheduledEnd) > new Date(v.scheduledStart), {
     message: 'Giờ kết thúc phải sau giờ bắt đầu',
@@ -28,6 +29,7 @@ export const updateAppointmentSchema = z
     scheduledEnd: isoDateTime.optional(),
     room: z.string().trim().max(50).nullable().optional(),
     reason: z.string().trim().max(1000).nullable().optional(),
+    customerPackageId: z.string().uuid().nullable().optional(),
   })
   .refine((v) => Object.keys(v).length > 0, 'Cần ít nhất một trường để cập nhật')
   .refine(
@@ -55,9 +57,22 @@ export const listAppointmentsSchema = z.object({
   pageSize: z.coerce.number().int().min(1).max(100).default(20),
   patientId: z.string().uuid().optional(),
   doctorId: z.string().uuid().optional(),
+  branchId: z.string().uuid().optional(),
+  room: z.string().trim().max(50).optional(),
+  source: z.enum(['prebooked', 'phone', 'online', 'walkin']).optional(),
   status: z
     .enum(['scheduled', 'confirmed', 'checked_in', 'in_progress', 'completed', 'cancelled', 'no_show'])
     .optional(),
+  from: isoDateTime.optional(),
+  to: isoDateTime.optional(),
+});
+
+/** Đếm lịch hẹn theo trạng thái (badge bộ lọc) — cùng bộ lọc nhưng bỏ phân trang/trạng thái. */
+export const appointmentCountsSchema = z.object({
+  doctorId: z.string().uuid().optional(),
+  branchId: z.string().uuid().optional(),
+  room: z.string().trim().max(50).optional(),
+  source: z.enum(['prebooked', 'phone', 'online', 'walkin']).optional(),
   from: isoDateTime.optional(),
   to: isoDateTime.optional(),
 });
@@ -67,3 +82,4 @@ export type UpdateAppointmentInput = z.infer<typeof updateAppointmentSchema>;
 export type TransitionInput = z.infer<typeof transitionSchema>;
 export type CancelAppointmentInput = z.infer<typeof cancelAppointmentSchema>;
 export type ListAppointmentsQuery = z.infer<typeof listAppointmentsSchema>;
+export type AppointmentCountsQuery = z.infer<typeof appointmentCountsSchema>;
