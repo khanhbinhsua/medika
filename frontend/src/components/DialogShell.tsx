@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import type { ReactNode } from 'react';
 
 /** Khung hộp thoại dùng chung: nền mờ, khoá cuộn trang, đóng bằng Esc hoặc click ra ngoài. */
@@ -23,9 +24,11 @@ export function DialogShell({
     };
   }, []);
 
-  return (
+  // Portal ra body: nếu không, overlay nằm trong <main className="rise"> (stacking context
+  // do animation transform) và bị header sticky z-20 phủ lên phần trên.
+  return createPortal(
     <div
-      className="fixed inset-0 z-40 flex items-start justify-center overflow-y-auto bg-ink/40 p-4 backdrop-blur-sm sm:items-center"
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-ink/40 p-4 backdrop-blur-sm sm:items-center"
       onMouseDown={(e) => e.target === e.currentTarget && onClose()}
     >
       <div role="dialog" aria-modal="true" className={`plate float-3 rise w-full rounded-lg ${maxWidth}`}>
@@ -45,6 +48,7 @@ export function DialogShell({
         </div>
         {children}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

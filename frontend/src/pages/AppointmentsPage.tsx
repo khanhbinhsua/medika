@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
@@ -423,9 +424,9 @@ function CancelDialog({
     onError: (err) => toast.error(getErrorMessage(err)),
   });
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-40 flex items-center justify-center bg-ink/25 p-4 backdrop-blur-[2px]"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-ink/25 p-4 backdrop-blur-[2px]"
       onMouseDown={(e) => e.target === e.currentTarget && onClose()}
     >
       <form
@@ -466,6 +467,7 @@ function CancelDialog({
           </Button>
         </div>
       </form>
-    </div>
+    </div>,
+    document.body,
   );
 }

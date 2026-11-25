@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { createPatient } from '../lib/patients';
 import { getErrorMessage } from '../lib/api-client';
 import { Button, Input, Field, Alert } from './ui';
@@ -67,9 +68,9 @@ export function NewPatientDialog({ onClose, onCreated }: { onClose: () => void; 
     }
   }
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-40 flex items-start justify-center overflow-y-auto bg-ink/25 p-4 backdrop-blur-[2px] sm:items-center"
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-ink/25 p-4 backdrop-blur-[2px] sm:items-center"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -150,6 +151,7 @@ export function NewPatientDialog({ onClose, onCreated }: { onClose: () => void; 
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { apiClient, getErrorMessage } from '../lib/api-client';
@@ -86,9 +87,9 @@ export function NewAppointmentDialog({
     onError: (err) => setError(getErrorMessage(err)),
   });
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-40 flex items-start justify-center overflow-y-auto bg-ink/25 p-4 backdrop-blur-[2px] sm:items-center"
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-ink/25 p-4 backdrop-blur-[2px] sm:items-center"
       onMouseDown={(e) => e.target === e.currentTarget && onClose()}
     >
       <form
@@ -227,6 +228,7 @@ export function NewAppointmentDialog({
           </div>
         </div>
       </form>
-    </div>
+    </div>,
+    document.body,
   );
 }
