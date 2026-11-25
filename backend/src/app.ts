@@ -32,6 +32,7 @@ import { bookingPublicRouter, bookingRouter } from './modules/booking/booking.ro
 import { billingRouter } from './modules/billing/billing.routes.js';
 import { encounterRouter } from './modules/encounters/encounters.routes.js';
 import { photoRouter } from './modules/photo/photo.routes.js';
+import { complaintsRouter } from './modules/complaints/complaints.routes.js';
 import { dklinkWebhookRouter } from './modules/dklink/dklink.routes.js';
 
 export function createApp() {
@@ -125,6 +126,7 @@ export function createApp() {
   app.use('/api/billing', billingRouter);
   app.use('/api/encounters', encounterRouter);
   app.use('/api/photos', photoRouter);
+  app.use('/api/complaints', complaintsRouter);
 
   app.use(notFoundHandler);
   app.use(errorHandler);

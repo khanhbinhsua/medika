@@ -18,6 +18,11 @@ type Form = Pick<Encounter, 'reason' | 'history' | 'pastPersonal' | 'pastFamily'
 
 const ta = 'w-full rounded-md border border-rule-strong bg-surface px-3 py-2 text-sm text-ink placeholder:text-ink-faint input-focus transition-[border-color,box-shadow]';
 
+// Cụm từ chọn sẵn cho các mục khám (danh sách gợi ý — bấm để chèn, vẫn sửa tay được).
+const PRESET_GENERAL = ['Tỉnh, tiếp xúc tốt', 'Da niêm mạc hồng', 'Không phù', 'Không sốt', 'Hạch ngoại vi không sờ thấy'];
+const PRESET_ORGANS = ['Tim đều, T1 T2 rõ', 'Phổi thông khí đều, không ran', 'Bụng mềm, không chướng', 'Gan lách không sờ thấy', 'Thần kinh không dấu hiệu khu trú'];
+const joinPhrase = (cur: string | null | undefined, p: string) => (cur && cur.trim() ? `${cur.trim()}; ${p}` : p);
+
 function fromEncounter(e: Encounter): Form {
   return {
     reason: e.reason, history: e.history, pastPersonal: e.pastPersonal, pastFamily: e.pastFamily,
@@ -103,8 +108,14 @@ export function ExamDialog({ encounterId, onClose, onChanged }: { encounterId: s
               <V label="Chiều cao (cm)" value={f.vitals.height} onChange={(v) => setV('height', v)} disabled={!editable} />
               <V label="SpO₂ (%)" value={f.vitals.spo2} onChange={(v) => setV('spo2', v)} disabled={!editable} />
             </div>
-            <L label="1. Toàn thân"><textarea className={ta} rows={2} disabled={!editable} value={f.examGeneral ?? ''} onChange={(e) => set('examGeneral', e.target.value)} /></L>
-            <L label="2. Các bộ phận"><textarea className={ta} rows={3} disabled={!editable} value={f.examOrgans ?? ''} onChange={(e) => set('examOrgans', e.target.value)} /></L>
+            <L label="1. Toàn thân">
+              <textarea className={ta} rows={2} disabled={!editable} value={f.examGeneral ?? ''} onChange={(e) => set('examGeneral', e.target.value)} />
+              {editable && <Chips items={PRESET_GENERAL} onPick={(p) => set('examGeneral', joinPhrase(f.examGeneral, p))} />}
+            </L>
+            <L label="2. Các bộ phận">
+              <textarea className={ta} rows={3} disabled={!editable} value={f.examOrgans ?? ''} onChange={(e) => set('examOrgans', e.target.value)} />
+              {editable && <Chips items={PRESET_ORGANS} onPick={(p) => set('examOrgans', joinPhrase(f.examOrgans, p))} />}
+            </L>
             <L label="3. Tóm tắt kết quả cận lâm sàng"><textarea className={ta} rows={2} disabled={!editable} value={f.labsSummary ?? ''} onChange={(e) => set('labsSummary', e.target.value)} /></L>
           </Section>
           <Section n="V" title="Chẩn đoán">
@@ -208,4 +219,15 @@ function L({ label, children }: { label: string; children: React.ReactNode }) {
 }
 function V({ label, value, onChange, disabled, ph }: { label: string; value?: string; onChange: (v: string) => void; disabled: boolean; ph?: string }) {
   return <label className="block"><span className="field-label">{label}</span><Input className="tabular mt-1 h-9" disabled={disabled} value={value ?? ''} onChange={(e) => onChange(e.target.value)} placeholder={ph} /></label>;
+}
+function Chips({ items, onPick }: { items: string[]; onPick: (p: string) => void }) {
+  return (
+    <div className="mt-1.5 flex flex-wrap gap-1">
+      {items.map((p) => (
+        <button key={p} type="button" onClick={() => onPick(p)} className="rounded border border-rule-strong px-2 py-0.5 text-xs text-ink-soft hover:bg-surface-sunk hover:text-ink">
+          + {p}
+        </button>
+      ))}
+    </div>
+  );
 }

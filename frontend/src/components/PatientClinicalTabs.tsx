@@ -21,8 +21,13 @@ import { SpendingTab } from './SpendingTab';
 import { ConditionsTab } from './ConditionsTab';
 import { BillingTab } from './BillingTab';
 import { BenhAnTab } from './BenhAnTab';
+import { ComplaintsTab } from './ComplaintsTab';
+import { TreatmentPlansTab } from './TreatmentPlansTab';
+import { PackagesTab } from './PackagesTab';
 
-type Tab = 'encounter' | 'conditions' | 'prescriptions' | 'photos' | 'appointments' | 'documents' | 'spending' | 'billing';
+type Tab =
+  | 'encounter' | 'conditions' | 'prescriptions' | 'treatment' | 'photos'
+  | 'appointments' | 'documents' | 'packages' | 'spending' | 'billing' | 'complaints';
 
 export function PatientClinicalTabs({ patientId }: { patientId: string }) {
   const can = useAuthStore((s) => s.can);
@@ -31,11 +36,14 @@ export function PatientClinicalTabs({ patientId }: { patientId: string }) {
     { id: 'encounter', label: 'Bệnh án', visible: can('encounter:read') },
     { id: 'conditions', label: 'Bệnh lý & Dị ứng', visible: can('condition:read') },
     { id: 'prescriptions', label: 'Đơn thuốc', visible: can('record:read') },
+    { id: 'treatment', label: 'Phác đồ', visible: can('treatment:read') },
     { id: 'photos', label: 'Ảnh trước/sau', visible: can('photo:read') },
     { id: 'documents', label: 'Tài liệu', visible: can('document:read') },
     { id: 'appointments', label: 'Lịch hẹn', visible: can('appointment:read') },
+    { id: 'packages', label: 'Gói buổi', visible: can('billing:read') },
     { id: 'spending', label: 'Chi tiêu', visible: can('spending:read') },
     { id: 'billing', label: 'Thanh toán', visible: can('billing:read') },
+    { id: 'complaints', label: 'Khiếu nại', visible: can('complaint:read') },
   ];
 
   const visible = tabs.filter((t) => t.visible);
@@ -72,11 +80,14 @@ export function PatientClinicalTabs({ patientId }: { patientId: string }) {
         {tab === 'encounter' && <BenhAnTab patientId={patientId} />}
         {tab === 'conditions' && <ConditionsTab patientId={patientId} />}
         {tab === 'prescriptions' && <PrescriptionsTab patientId={patientId} />}
+        {tab === 'treatment' && <TreatmentPlansTab patientId={patientId} />}
         {tab === 'photos' && <PhotosTab patientId={patientId} />}
         {tab === 'documents' && <DocumentsTab patientId={patientId} />}
         {tab === 'appointments' && <AppointmentsTab patientId={patientId} />}
+        {tab === 'packages' && <PackagesTab patientId={patientId} />}
         {tab === 'spending' && <SpendingTab patientId={patientId} />}
         {tab === 'billing' && <BillingTab patientId={patientId} />}
+        {tab === 'complaints' && <ComplaintsTab patientId={patientId} />}
       </div>
     </section>
   );

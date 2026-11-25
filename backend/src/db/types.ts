@@ -744,6 +744,25 @@ export interface EncounterVersionsTable {
   created_at: Timestamp;
 }
 
+export type ComplaintStatus = 'open' | 'in_progress' | 'resolved' | 'closed';
+
+export interface ComplaintsTable {
+  id: Generated<string>;
+  code: Generated<string>;
+  patient_id: string;
+  category: string;
+  severity: Generated<string>;
+  status: Generated<ComplaintStatus>;
+  title: string;
+  detail_enc: Buffer | null;
+  assigned_to: string | null;
+  resolution_enc: Buffer | null;
+  resolved_at: Timestamp | null;
+  created_by: string;
+  created_at: Timestamp;
+  updated_at: Timestamp;
+}
+
 export interface Database {
   roles: RolesTable;
   permissions: PermissionsTable;
@@ -796,4 +815,5 @@ export interface Database {
   encounters: EncountersTable;
   encounter_versions: EncounterVersionsTable;
   clinical_photos: ClinicalPhotosTable;
+  complaints: ComplaintsTable;
 }

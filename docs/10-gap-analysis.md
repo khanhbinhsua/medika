@@ -33,10 +33,16 @@ Triển khai theo 3 đợt (xem `docs/10-gap-analysis.md` lịch sử + git log)
 - **Đợt 3**: #8 lịch ngày/tuần/tháng (react-big-calendar) + #12 bảng trạng thái (đếm phút
   chờ, viền cảnh báo) · #3 tìm toàn cục trên topbar (tên/SĐT đúng toàn chuỗi; MRN/mã đơn một phần).
 
-**Còn hoãn (cần quyết định/ngoài phạm vi 11 mục):** #7 đủ 11 tab hồ sơ (hiện 8 — chốt 3 tab
-còn lại); #18 danh sách chọn sẵn sinh hiệu (cần bộ giá trị mẫu); #5 banner khiếu nại + "lưu ý
-lần tới" (chờ module complaints). **Kiểm thử:** build+lint xanh cả BE/FE; chưa chạy runtime
-(worktree chưa cấu hình DB/env) nên lịch/bảng chưa test trên trình duyệt.
+**Phần hoãn — đã làm tiếp (2026-11-25):**
+- **#5** Dựng module **khiếu nại** (`complaints`, migration 033): BE API (list/getOne/create/
+  update, nội dung chi tiết + cách xử lý mã hoá DEK), FE tab "Khiếu nại" + banner "khiếu nại
+  đang mở" trên đầu hồ sơ. (Phần "lưu ý lần tới" vẫn chưa mô hình hoá.)
+- **#7** Hồ sơ khách giờ **11 tab**: thêm **Khiếu nại · Phác đồ · Gói buổi** (Phác đồ/Gói buổi
+  là tab chỉ-đọc, tái dùng dữ liệu treatment/customer_packages).
+- **#18** Thêm **cụm chọn sẵn** (chips chèn nhanh) cho mục Toàn thân / Các bộ phận trong bệnh án.
+
+**Kiểm thử:** build+lint xanh cả BE/FE; chưa chạy runtime (worktree chưa cấu hình DB/env) nên
+các màn mới (lịch/bảng/tìm toàn cục/khiếu nại) chưa test trên trình duyệt.
 
 ---
 
